@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MOOV – Weekly P&L</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<style>
+:root{--bg:#F5F5F3;--sur:#fff;--sur2:#F0F0EE;--bd:#E5E5E3;--bds:#CCC;--tx:#1A1A1A;--tx2:#6B7280;--tx3:#9CA3AF;--teal:#1D9E75;--teal-d:rgba(29,158,117,.08);--teal-b:rgba(29,158,117,.25);--red:#DC2626;--red-d:rgba(220,38,38,.06);--amb:#D97706;--r:14px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;min-height:100vh;}
+.app{max-width:820px;margin:0 auto;padding:28px 18px 60px;}
+.hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px;}
+.logo{font-family:'Syne',sans-serif;font-size:18px;font-weight:800;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;}
+.hdr-title{font-family:'Syne',sans-serif;font-size:20px;font-weight:700;}
+/* Tabs */
+.tabs{display:flex;gap:5px;margin-bottom:22px;background:var(--sur2);border-radius:40px;padding:4px;width:fit-content;}
+.tab-btn{font-size:13px;font-weight:500;padding:7px 20px;border-radius:30px;border:none;background:transparent;color:var(--tx2);cursor:pointer;transition:all .15s;}
+.tab-btn.on{background:var(--sur);color:var(--tx);box-shadow:0 1px 4px rgba(0,0,0,.08);}
+/* KW */
+.kw-row{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.kw-lbl{font-family:'DM Mono',monospace;font-size:11px;color:var(--tx2);text-transform:uppercase;letter-spacing:.08em;}
+.kw-inp{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--tx);background:transparent;border:none;outline:none;border-bottom:2px solid var(--teal);padding-bottom:2px;width:140px;}
+/* Hero */
+.hero{border-radius:var(--r);padding:28px 26px;position:relative;overflow:hidden;margin-bottom:14px;}
+.hero.profit{background:linear-gradient(135deg,#1D9E75 0%,#15795A 100%);}
+.hero.loss{background:linear-gradient(135deg,#DC2626 0%,#991B1B 100%);}
+.hero-circle{position:absolute;border-radius:50%;background:rgba(255,255,255,.07);}
+.hero-circle.c1{width:220px;height:220px;right:-60px;top:-70px;}
+.hero-circle.c2{width:130px;height:130px;right:90px;bottom:-40px;}
+.hero-lbl{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.65);margin-bottom:6px;}
+.hero-val{font-family:'Syne',sans-serif;font-size:46px;font-weight:800;color:#fff;line-height:1;margin-bottom:18px;}
+.hero-metrics{display:flex;gap:24px;flex-wrap:wrap;}
+.hm-lbl{font-size:11px;color:rgba(255,255,255,.6);margin-bottom:3px;}
+.hm-val{font-family:'DM Mono',monospace;font-size:15px;font-weight:500;color:#fff;}
+/* Comp cards */
+.comp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px;}
+@media(max-width:580px){.comp-grid{grid-template-columns:1fr;}}
+.comp-card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:13px 15px;}
+.comp-lbl{font-size:11px;color:var(--tx2);margin-bottom:5px;}
+.comp-val{font-family:'DM Mono',monospace;font-size:17px;font-weight:500;color:var(--tx);margin-bottom:5px;}
+.comp-pill{display:inline-flex;align-items:center;gap:3px;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:500;}
+.pill-up{background:rgba(29,158,117,.1);color:var(--teal);}
+.pill-dn{background:var(--red-d);color:var(--red);}
+.pill-neu{background:var(--sur2);color:var(--tx2);}
+.comp-avg{font-size:11px;color:var(--tx3);margin-top:3px;}
+/* Inputs */
+.inp-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px;}
+@media(max-width:540px){.inp-grid{grid-template-columns:1fr 1fr;}}
+.inp-card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:13px 14px;cursor:text;transition:border-color .15s;}
+.inp-card:focus-within{border-color:var(--teal);}
+.inp-lbl{font-size:11px;color:var(--tx2);margin-bottom:5px;}
+.inp-val{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;color:var(--tx);background:transparent;border:none;outline:none;width:100%;}
+.inp-unit{font-size:11px;color:var(--tx3);margin-top:2px;}
+/* Cost bar */
+.cost-wrap{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:15px 16px;margin-bottom:14px;}
+.cost-title{font-size:12px;font-weight:500;color:var(--tx);margin-bottom:10px;}
+.cost-bar{height:34px;border-radius:8px;overflow:hidden;display:flex;margin-bottom:10px;}
+.cost-seg{display:flex;align-items:center;justify-content:center;font-family:'DM Mono',monospace;font-size:10px;font-weight:500;color:#fff;transition:width .4s;overflow:hidden;white-space:nowrap;}
+.cost-leg{display:flex;gap:10px;flex-wrap:wrap;}
+.cl-i{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2);}
+.cl-dot{width:8px;height:8px;border-radius:2px;}
+/* Buttons */
+.btn{font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:10px 20px;border-radius:10px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;justify-content:center;}
+.btn-teal{background:var(--teal);color:#fff;}
+.btn-teal:hover{background:#179967;transform:translateY(-1px);}
+.btn-outline{background:transparent;border:1px solid var(--bd);color:var(--tx2);}
+.btn-outline:hover{border-color:var(--bds);color:var(--tx);}
+.btn-row{display:flex;gap:8px;margin-bottom:6px;}
+.btn-row .btn{flex:1;}
+.save-msg{font-size:12px;color:var(--teal);text-align:center;height:18px;}
+/* Chart */
+.chart-card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:18px;margin-bottom:14px;}
+.chart-title{font-size:13px;font-weight:500;color:var(--tx);margin-bottom:14px;}
+.chart-wrap{position:relative;height:220px;}
+/* Table */
+.tbl-wrap{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);overflow:hidden;}
+.dtbl{width:100%;border-collapse:collapse;}
+.dtbl th{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.08em;color:var(--tx3);padding:10px 13px;text-align:left;border-bottom:1px solid var(--bd);}
+.dtbl td{font-size:13px;color:var(--tx2);padding:10px 13px;border-bottom:1px solid var(--bd);}
+.dtbl tr:last-child td{border-bottom:none;}
+.dtbl tbody tr:hover td{background:var(--sur2);cursor:pointer;}
+.dtbl td:first-child{color:var(--tx);font-weight:500;}
+.pos{color:var(--teal)!important;font-weight:500;}.neg{color:var(--red)!important;font-weight:500;}
+.ref-badge{font-family:'DM Mono',monospace;font-size:9px;padding:1px 6px;border-radius:20px;background:var(--teal-d);color:var(--teal);margin-left:5px;}
+/* Settings */
+.set-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;}
+@media(max-width:480px){.set-grid{grid-template-columns:1fr;}}
+.set-card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:15px;}
+.set-lbl{font-size:12px;color:var(--tx2);margin-bottom:5px;}
+.set-inp{font-family:'DM Mono',monospace;font-size:20px;font-weight:500;color:var(--tx);background:transparent;border:none;outline:none;width:100%;border-bottom:1.5px solid var(--teal);padding-bottom:2px;}
+.set-hint{font-size:11px;color:var(--tx3);margin-top:4px;}
+.set-save-btn{margin-top:14px;background:var(--teal);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:9px 20px;border-radius:8px;border:none;cursor:pointer;}
+.empty{text-align:center;padding:40px;color:var(--tx3);font-size:13px;}
+::-webkit-scrollbar{width:4px;}.::webkit-scrollbar-thumb{background:var(--bds);border-radius:3px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div class="logo">MOOV</div>
+    <div class="hdr-title">Weekly P&L Tracker</div>
+  </div>
+  <div class="tabs">
+    <button class="tab-btn on" onclick="showTab('woche')">📊 Woche</button>
+    <button class="tab-btn" onclick="showTab('verlauf')">📈 Verlauf</button>
+    <button class="tab-btn" onclick="showTab('einstellungen')">⚙️ Einstellungen</button>
+  </div>
+
+  <!-- TAB WOCHE -->
+  <div id="tab-woche">
+    <div class="kw-row">
+      <span class="kw-lbl">KW</span>
+      <input class="kw-inp" id="inp-kw" value="KW 21 / 2026" oninput="recalc()">
+      <button class="btn btn-outline" style="font-size:12px;padding:5px 12px;border-radius:8px" onclick="newWeek()">+ Neue Woche</button>
+    </div>
+    <div id="hero-card" class="hero profit">
+      <div class="hero-circle c1"></div><div class="hero-circle c2"></div>
+      <div class="hero-lbl">Wochengewinn</div>
+      <div class="hero-val" id="h-gewinn">CHF 0.00</div>
+      <div class="hero-metrics">
+        <div><div class="hm-lbl">Nettoumsatz</div><div class="hm-val" id="h-umsatz">CHF 0</div></div>
+        <div><div class="hm-lbl">Nettomarge</div><div class="hm-val" id="h-marge">0.0%</div></div>
+        <div><div class="hm-lbl">ROAS</div><div class="hm-val" id="h-roas">0.00x</div></div>
+      </div>
+    </div>
+    <div class="comp-grid">
+      <div class="comp-card"><div class="comp-lbl">Gewinn vs. Ø</div><div class="comp-val" id="c-gewinn">–</div><div id="p-gewinn" class="comp-pill pill-neu">–</div><div class="comp-avg">Ø CHF 1'354</div></div>
+      <div class="comp-card"><div class="comp-lbl">Marge vs. Ø</div><div class="comp-val" id="c-marge">–</div><div id="p-marge" class="comp-pill pill-neu">–</div><div class="comp-avg">Ø 25.1%</div></div>
+      <div class="comp-card"><div class="comp-lbl">ROAS vs. Ø</div><div class="comp-val" id="c-roas">–</div><div id="p-roas" class="comp-pill pill-neu">–</div><div class="comp-avg">Ø 3.52x</div></div>
+    </div>
+    <div class="inp-grid">
+      <div class="inp-card"><div class="inp-lbl">Umsatz</div><input class="inp-val" id="i-umsatz" type="number" value="3806" oninput="recalc()"><div class="inp-unit">CHF</div></div>
+      <div class="inp-card"><div class="inp-lbl">Bestellungen</div><input class="inp-val" id="i-bestellungen" type="number" value="71" oninput="recalc()"><div class="inp-unit">Anzahl</div></div>
+      <div class="inp-card"><div class="inp-lbl">Artikel</div><input class="inp-val" id="i-artikel" type="number" value="139" oninput="recalc()"><div class="inp-unit">verkauft</div></div>
+      <div class="inp-card"><div class="inp-lbl">Meta Ads</div><input class="inp-val" id="i-meta" type="number" value="1507" oninput="recalc()"><div class="inp-unit">CHF Ausgaben</div></div>
+      <div class="inp-card"><div class="inp-lbl">Retouren</div><input class="inp-val" id="i-retouren" type="number" value="0" oninput="recalc()"><div class="inp-unit">CHF</div></div>
+    </div>
+    <div class="cost-wrap">
+      <div class="cost-title">Kostenstruktur (% von Nettoumsatz)</div>
+      <div class="cost-bar">
+        <div class="cost-seg" id="s-cogs" style="background:#1D9E75"></div>
+        <div class="cost-seg" id="s-svz" style="background:#2563EB"></div>
+        <div class="cost-seg" id="s-meta" style="background:#DC2626"></div>
+        <div class="cost-seg" id="s-fees" style="background:#D97706"></div>
+        <div class="cost-seg" id="s-fix" style="background:#6B7280"></div>
+      </div>
+      <div class="cost-leg">
+        <div class="cl-i"><div class="cl-dot" style="background:#1D9E75"></div>COGS <span id="l-cogs" style="color:var(--tx);margin-left:2px;font-family:'DM Mono',monospace;font-size:11px"></span></div>
+        <div class="cl-i"><div class="cl-dot" style="background:#2563EB"></div>SVZ <span id="l-svz" style="color:var(--tx);margin-left:2px;font-family:'DM Mono',monospace;font-size:11px"></span></div>
+        <div class="cl-i"><div class="cl-dot" style="background:#DC2626"></div>Meta <span id="l-meta" style="color:var(--tx);margin-left:2px;font-family:'DM Mono',monospace;font-size:11px"></span></div>
+        <div class="cl-i"><div class="cl-dot" style="background:#D97706"></div>Fees <span id="l-fees" style="color:var(--tx);margin-left:2px;font-family:'DM Mono',monospace;font-size:11px"></span></div>
+        <div class="cl-i"><div class="cl-dot" style="background:#6B7280"></div>Fix <span id="l-fix" style="color:var(--tx);margin-left:2px;font-family:'DM Mono',monospace;font-size:11px"></span></div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-teal" onclick="saveWeek()">💾 Woche speichern</button>
+    </div>
+    <div class="save-msg" id="save-msg"></div>
+  </div>
+
+  <!-- TAB VERLAUF -->
+  <div id="tab-verlauf" style="display:none">
+    <div class="chart-card">
+      <div class="chart-title">Wochengewinn Verlauf</div>
+      <div class="chart-wrap"><canvas id="verlauf-chart"></canvas></div>
+    </div>
+    <div class="tbl-wrap">
+      <table class="dtbl">
+        <thead><tr><th>KW</th><th>Umsatz</th><th>Meta</th><th>Kosten total</th><th>Gewinn</th><th>Marge</th><th>ROAS</th></tr></thead>
+        <tbody id="verlauf-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TAB EINSTELLUNGEN -->
+  <div id="tab-einstellungen" style="display:none">
+    <div class="set-grid">
+      <div class="set-card"><div class="set-lbl">COGS pro Produkt</div><input class="set-inp" id="s-cogs" type="number" step="0.01"><div class="set-hint">CHF pro verkauften Artikel</div></div>
+      <div class="set-card"><div class="set-lbl">SVZ pro Bestellung</div><input class="set-inp" id="s-svz" type="number" step="0.01"><div class="set-hint">Fulfillment & Versand CHF/Bestellung</div></div>
+      <div class="set-card"><div class="set-lbl">Payment Fee Rate</div><input class="set-inp" id="s-fee" type="number" step="0.001"><div class="set-hint">z.B. 0.028 = 2.8% vom Nettoumsatz</div></div>
+      <div class="set-card"><div class="set-lbl">Coworking / Woche</div><input class="set-inp" id="s-cowork" type="number" step="0.01"><div class="set-hint">CHF (280 / 4.33)</div></div>
+      <div class="set-card"><div class="set-lbl">Shopify & Apps / Woche</div><input class="set-inp" id="s-shopify" type="number" step="0.01"><div class="set-hint">CHF (140 / 4.33)</div></div>
+    </div>
+    <button class="set-save-btn" onclick="saveSettings()">Einstellungen speichern</button>
+    <div id="set-msg" style="font-size:12px;color:var(--teal);margin-top:8px;"></div>
+  </div>
+</div>
+
+<script>
+/* ── STATE ── */
+const DS={cogs:6,svz:10.99,feeRate:0.028,cowork:64.62,shopify:32.31};
+const AVG={gewinn:1354,marge:25.09,roas:3.52};
+let settings=JSON.parse(localStorage.getItem('moov_pnl_s')||'null')||{...DS};
+let weeks=JSON.parse(localStorage.getItem('moov_pnl_w')||'null')||[];
+let verlaufChart=null;
+const fC=n=>'CHF '+(+n).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fP=n=>(+n).toFixed(1)+'%';
+const fX=n=>(+n).toFixed(2)+'x';
+const g=id=>+document.getElementById(id)?.value||0;
+
+function calc(w,s){
+  const net=w.umsatz-w.retouren;
+  const cogs=w.artikel*s.cogs;
+  const svz=w.bestellungen*s.svz;
+  const fees=net*s.feeRate;
+  const fix=s.cowork+s.shopify;
+  const total=cogs+svz+w.meta+fees+fix;
+  const gewinn=net-total;
+  const marge=net>0?gewinn/net*100:0;
+  const roas=w.meta>0?w.umsatz/w.meta:0;
+  const pct={cogs:net>0?cogs/net*100:0,svz:net>0?svz/net*100:0,meta:net>0?w.meta/net*100:0,fees:net>0?fees/net*100:0,fix:net>0?fix/net*100:0};
+  return{net,cogs,svz,fees,fix,total,gewinn,marge,roas,pct};
+}
+
+function recalc(){
+  const w={umsatz:g('i-umsatz'),bestellungen:g('i-bestellungen'),artikel:g('i-artikel'),meta:g('i-meta'),retouren:g('i-retouren')};
+  const r=calc(w,settings);
+  const isP=r.gewinn>=0;
+  document.getElementById('hero-card').className='hero '+(isP?'profit':'loss');
+  document.getElementById('h-gewinn').textContent=(isP?'+':'')+fC(r.gewinn);
+  document.getElementById('h-umsatz').textContent=fC(r.net);
+  document.getElementById('h-marge').textContent=fP(r.marge);
+  document.getElementById('h-roas').textContent=fX(r.roas);
+  document.getElementById('c-gewinn').textContent=(r.gewinn>=0?'+':'')+fC(r.gewinn);
+  document.getElementById('c-marge').textContent=fP(r.marge);
+  document.getElementById('c-roas').textContent=fX(r.roas);
+  setPill('p-gewinn',r.gewinn,AVG.gewinn);
+  setPill('p-marge',r.marge,AVG.marge);
+  setPill('p-roas',r.roas,AVG.roas);
+  const segs=[['cogs',r.pct.cogs],['svz',r.pct.svz],['meta',r.pct.meta],['fees',r.pct.fees],['fix',r.pct.fix]];
+  segs.forEach(([k,v])=>{
+    const p=Math.max(v,0);
+    document.getElementById('s-'+k).style.width=p+'%';
+    document.getElementById('s-'+k).textContent=p>=6?p.toFixed(0)+'%':'';
+    document.getElementById('l-'+k).textContent=p.toFixed(0)+'%';
+  });
+}
+function setPill(id,cur,avg){
+  const el=document.getElementById(id);
+  const diff=cur-avg;
+  const sign=diff>=0?'+':'';
+  el.className='comp-pill '+(diff>=0?'pill-up':'pill-dn');
+  el.textContent=(diff>=0?'↑ ':'↓ ')+sign+(typeof avg==='number'&&avg>10?fC(diff):diff.toFixed(2))+' vs. Ø';
+}
+
+function saveWeek(){
+  const kw=document.getElementById('inp-kw').value.trim()||'KW ?';
+  const w={kw,umsatz:g('i-umsatz'),bestellungen:g('i-bestellungen'),artikel:g('i-artikel'),meta:g('i-meta'),retouren:g('i-retouren')};
+  w._r=calc(w,settings);
+  weeks=weeks.filter(x=>x.kw!==kw);
+  weeks.push(w);
+  localStorage.setItem('moov_pnl_w',JSON.stringify(weeks));
+  const msg=document.getElementById('save-msg');
+  msg.textContent='✓ '+kw+' gespeichert!';
+  setTimeout(()=>{msg.textContent='';},2500);
+}
+
+function newWeek(){
+  const kwNum=+prompt('Kalenderwoche eingeben:','')||0;
+  if(!kwNum)return;
+  document.getElementById('inp-kw').value=`KW ${kwNum} / 2026`;
+  ['i-umsatz','i-bestellungen','i-artikel','i-meta','i-retouren'].forEach(id=>{
+    document.getElementById(id).value='0';
+  });
+  recalc();
+}
+
+/* ── TABS ── */
+function showTab(t){
+  ['woche','verlauf','einstellungen'].forEach(x=>{
+    document.getElementById('tab-'+x).style.display=x===t?'block':'none';
+  });
+  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
+    b.classList.toggle('on',['woche','verlauf','einstellungen'][i]===t);
+  });
+  if(t==='verlauf')renderVerlauf();
+  if(t==='einstellungen'){
+    document.getElementById('s-cogs').value=settings.cogs;
+    document.getElementById('s-svz').value=settings.svz;
+    document.getElementById('s-fee').value=settings.feeRate;
+    document.getElementById('s-cowork').value=settings.cowork;
+    document.getElementById('s-shopify').value=settings.shopify;
+  }
+}
+
+/* ── VERLAUF ── */
+function renderVerlauf(){
+  const saved=weeks.filter(x=>!x.isRef);
+  const tbody=document.getElementById('verlauf-tbody');
+  const refR=calc({umsatz:5397,bestellungen:96,artikel:201,meta:1534,retouren:0},settings);
+  const rows=[{kw:'KW 09–18 (Ø)',umsatz:5397,meta:1534,_r:refR,isRef:true},...[...saved].reverse()];
+  tbody.innerHTML=rows.map(w=>{
+    const r=w._r||calc(w,settings);
+    const g2=r.gewinn;
+    return`<tr onclick="${w.isRef?'':('loadWeek(\''+w.kw+'\')')}">
+      <td>${w.kw}${w.isRef?'<span class="ref-badge">Ø Ref</span>':''}</td>
+      <td>${fC(w.umsatz)}</td><td>${fC(w.meta)}</td>
+      <td>${fC(r.total)}</td>
+      <td class="${g2>=0?'pos':'neg'}">${g2>=0?'+':''}${fC(g2)}</td>
+      <td>${fP(r.marge)}</td><td>${fX(r.roas)}</td>
+    </tr>`;
+  }).join('');
+
+  if(verlaufChart){verlaufChart.destroy();verlaufChart=null;}
+  if(!saved.length){
+    document.querySelector('.chart-wrap').innerHTML='<div class="empty">Noch keine Wochen gespeichert.<br>Erfasse und speichere deine erste Woche im «Woche»-Tab.</div>';
+    return;
+  }
+  document.querySelector('.chart-wrap').innerHTML='<canvas id="verlauf-chart"></canvas>';
+  const labels=saved.map(w=>w.kw);
+  const profits=saved.map(w=>(w._r||calc(w,settings)).gewinn);
+  const ctx=document.getElementById('verlauf-chart');
+  verlaufChart=new Chart(ctx,{
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Gewinn',data:profits,backgroundColor:profits.map(p=>p>=0?'rgba(29,158,117,.75)':'rgba(220,38,38,.75)'),borderRadius:6,order:2},
+        {label:'Ø Historisch',data:saved.map(()=>AVG.gewinn),type:'line',borderColor:'#D97706',borderDash:[5,4],borderWidth:2,pointRadius:0,fill:false,order:1}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{labels:{font:{size:11},color:'#6B7280'}}},
+      scales:{
+        x:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{display:false}},
+        y:{ticks:{color:'#9CA3AF',font:{size:11},callback:v=>'CHF '+v.toLocaleString('de-CH')},grid:{color:'rgba(0,0,0,.05)'}}
+      }
+    }
+  });
+}
+
+function loadWeek(kw){
+  const w=weeks.find(x=>x.kw===kw);if(!w)return;
+  document.getElementById('inp-kw').value=w.kw;
+  document.getElementById('i-umsatz').value=w.umsatz;
+  document.getElementById('i-bestellungen').value=w.bestellungen;
+  document.getElementById('i-artikel').value=w.artikel;
+  document.getElementById('i-meta').value=w.meta;
+  document.getElementById('i-retouren').value=w.retouren;
+  showTab('woche');recalc();
+}
+
+function saveSettings(){
+  settings={
+    cogs:+document.getElementById('s-cogs').value||DS.cogs,
+    svz:+document.getElementById('s-svz').value||DS.svz,
+    feeRate:+document.getElementById('s-fee').value||DS.feeRate,
+    cowork:+document.getElementById('s-cowork').value||DS.cowork,
+    shopify:+document.getElementById('s-shopify').value||DS.shopify
+  };
+  localStorage.setItem('moov_pnl_s',JSON.stringify(settings));
+  document.getElementById('set-msg').textContent='✓ Einstellungen gespeichert!';
+  setTimeout(()=>{document.getElementById('set-msg').textContent='';},2000);
+  recalc();
+}
+
+recalc();
+</script>
+</body>
+</html>

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>MOOV – Lieferantenübersicht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap">
+<style>
+:root{--bg:#F5F5F3;--sur:#fff;--sur2:#F0F0EE;--bd:#E5E5E3;--bds:#CCC;--tx:#1A1A1A;--tx2:#6B7280;--tx3:#9CA3AF;--teal:#1D9E75;--teal-d:rgba(29,158,117,.08);--teal-b:rgba(29,158,117,.25);--red:#DC2626;--red-d:rgba(220,38,38,.06);--amb:#D97706;--amb-d:rgba(217,119,6,.08);--r:12px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);color:var(--tx);font-family:'DM Sans',sans-serif;font-size:14px;-webkit-font-smoothing:antialiased;min-height:100vh;}
+.app{max-width:960px;margin:0 auto;padding:28px 18px 60px;}
+.hdr{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px;}
+.logo{font-family:'Syne',sans-serif;font-size:20px;font-weight:800;color:var(--teal);letter-spacing:.08em;text-transform:uppercase;}
+.hdr-right{display:flex;gap:8px;flex-wrap:wrap;}
+.hdr-title{font-family:'Syne',sans-serif;font-size:22px;font-weight:700;margin-top:4px;}
+.hdr-sub{font-size:12px;color:var(--tx2);margin-top:3px;}
+/* Buttons */
+.btn{font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;padding:7px 14px;border-radius:8px;border:1px solid var(--bd);background:var(--sur);color:var(--tx2);cursor:pointer;transition:all .13s;display:inline-flex;align-items:center;gap:5px;}
+.btn:hover{border-color:var(--bds);color:var(--tx);}
+.btn-teal{background:var(--teal);border-color:var(--teal);color:#fff;}
+.btn-teal:hover{background:#179967;border-color:#179967;color:#fff;}
+.btn-red{color:var(--red);border-color:rgba(220,38,38,.2);background:var(--red-d);}
+.btn-red:hover{background:rgba(220,38,38,.12);}
+.btn-sm{font-size:11px;padding:4px 10px;border-radius:6px;}
+/* Summary */
+.sum-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px;}
+@media(max-width:680px){.sum-grid{grid-template-columns:repeat(2,1fr);}}
+.sum-card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;}
+.sum-lbl{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:5px;}
+.sum-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;}
+.sum-sub{font-size:11px;color:var(--tx2);margin-top:2px;}
+.c-teal{color:var(--teal)!important;}.c-red{color:var(--red)!important;}.c-amb{color:var(--amb)!important;}
+/* Progress */
+.prog-card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);padding:14px 16px;margin-bottom:20px;}
+.prog-row{display:flex;justify-content:space-between;font-size:12px;color:var(--tx2);margin-bottom:8px;}
+.prog-bar{height:8px;background:var(--sur2);border-radius:20px;overflow:hidden;}
+.prog-fill{height:100%;background:var(--teal);border-radius:20px;}
+.prog-legend{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap;}
+.leg{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--tx2);}
+.leg-dot{width:8px;height:8px;border-radius:50%;}
+/* Section */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.sec-title{font-family:'DM Mono',monospace;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);}
+/* Delivery card */
+.del-card{background:var(--sur);border:1px solid var(--bd);border-radius:var(--r);margin-bottom:8px;overflow:hidden;}
+.del-card.warn{border-color:rgba(220,38,38,.3);}
+.del-hdr{display:flex;align-items:center;gap:10px;padding:13px 16px;border-bottom:1px solid var(--bd);cursor:pointer;}
+.del-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;color:var(--teal);flex-shrink:0;}
+.del-date{font-size:13px;font-weight:500;color:var(--tx);flex:1;}
+.del-boxes{font-family:'DM Mono',monospace;font-size:11px;color:var(--tx2);}
+.del-total{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;color:var(--tx);}
+.del-actions{display:flex;gap:5px;flex-shrink:0;}
+.del-arr{font-size:10px;color:var(--tx3);transition:transform .2s;}
+.del-arr.open{transform:rotate(180deg);}
+.del-body{padding:10px 16px 14px;display:none;}
+.del-body.open{display:block;}
+/* Payment rows */
+.pay-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--bd);flex-wrap:wrap;}
+.pay-row:last-child{border-bottom:none;}
+.pay-status-dot{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+.dot-paid{background:var(--teal-d);color:var(--teal);}
+.dot-overdue{background:var(--red-d);color:var(--red);}
+.dot-soon{background:var(--amb-d);color:var(--amb);}
+.dot-pending{background:var(--sur2);color:var(--tx3);}
+.pay-ref{font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3);width:80px;flex-shrink:0;}
+.pay-desc{font-size:13px;color:var(--tx);flex:1;min-width:120px;}
+.pay-due{font-size:11px;color:var(--tx2);width:88px;flex-shrink:0;}
+.pay-amt{font-family:'DM Mono',monospace;font-size:13px;font-weight:500;width:100px;text-align:right;flex-shrink:0;}
+.pay-badge{font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:20px;flex-shrink:0;}
+.badge-paid{background:var(--teal-d);color:var(--teal);}
+.badge-overdue{background:var(--red-d);color:var(--red);}
+.badge-soon{background:var(--amb-d);color:var(--amb);}
+.badge-pending{background:var(--sur2);color:var(--tx3);}
+.pay-row-actions{display:flex;gap:4px;flex-shrink:0;}
+.icon-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(--bd);background:transparent;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--tx3);transition:all .12s;}
+.icon-btn:hover{background:var(--sur2);border-color:var(--bds);color:var(--tx);}
+.icon-btn.mark-paid{color:var(--teal);border-color:var(--teal-b);}
+.icon-btn.mark-paid:hover{background:var(--teal-d);}
+/* Flavor */
+.flavor-wrap{margin-top:10px;display:flex;gap:6px;flex-wrap:wrap;}
+.flavor-chip{background:var(--sur2);border-radius:6px;padding:5px 10px;font-size:12px;display:flex;gap:6px;align-items:center;}
+.flavor-name{color:var(--tx2);}
+.flavor-qty{font-family:'DM Mono',monospace;font-weight:500;color:var(--tx);}
+/* Add payment row */
+.add-pay-row{padding-top:10px;display:flex;gap:6px;}
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:100;padding:20px;}
+.modal-card{background:var(--sur);border-radius:16px;padding:26px;width:100%;max-width:480px;box-shadow:0 20px 60px rgba(0,0,0,.15);}
+.modal-title{font-family:'Syne',sans-serif;font-size:18px;font-weight:700;color:var(--tx);margin-bottom:20px;}
+.modal-field{margin-bottom:14px;}
+.modal-label{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);display:block;margin-bottom:5px;}
+.modal-input{width:100%;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--tx);background:var(--sur2);border:1px solid var(--bd);border-radius:8px;padding:9px 11px;outline:none;transition:border-color .15s;}
+.modal-input:focus{border-color:var(--teal);}
+.modal-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.modal-btns{display:flex;gap:8px;margin-top:20px;}
+.modal-btns .btn{flex:1;justify-content:center;}
+.modal-del-zone{margin-top:16px;padding-top:14px;border-top:1px solid var(--bd);}
+.modal-del-lbl{font-size:11px;color:var(--tx3);margin-bottom:8px;}
+/* Upcoming alert */
+.alert{background:rgba(220,38,38,.06);border:1px solid rgba(220,38,38,.2);border-radius:var(--r);padding:12px 16px;margin-bottom:16px;font-size:13px;color:var(--red);}
+.alert strong{font-weight:500;}
+/* empty */
+.empty-state{text-align:center;padding:30px;color:var(--tx3);font-size:13px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div>
+      <div class="logo">MOOV</div>
+      <div class="hdr-title">Lieferantenübersicht</div>
+      <div class="hdr-sub" id="contract-sub">PF0037 · 30'000 Einheiten · EUR 4.45/Stk</div>
+    </div>
+    <div class="hdr-right">
+      <button class="btn" onclick="openContractModal()">✏️ Vertrag</button>
+      <button class="btn btn-teal" onclick="openAddDelivery()">+ Lieferung</button>
+    </div>
+  </div>
+
+  <div class="sum-grid" id="summary"></div>
+  <div class="prog-card" id="progress"></div>
+
+  <div id="alerts"></div>
+
+  <div class="sec-hdr">
+    <div class="sec-title">Zahlungsplan</div>
+    <div style="font-size:11px;color:var(--tx3);">Stand: <span id="today-lbl"></span></div>
+  </div>
+  <div id="deliveries-list"></div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
+  <div class="modal-card">
+    <div class="modal-title" id="modal-title">Modal</div>
+    <div id="modal-body"></div>
+    <div class="modal-btns">
+      <button class="btn" onclick="closeModal()">Abbrechen</button>
+      <button class="btn btn-teal" onclick="modalSave()">Speichern</button>
+    </div>
+    <div class="modal-del-zone" id="modal-del-zone" style="display:none">
+      <div class="modal-del-lbl">Gefahrenzone</div>
+      <button class="btn btn-red btn-sm" onclick="modalDelete()">🗑 Löschen</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ── DEFAULT DATA ── */
+const DEF={
+  contract:{ref:'PF0037',supplier:'Produzent',pricePerUnit:4.45,currency:'EUR',totalUnits:30000},
+  deliveries:[
+    {id:'d0',name:'Anzahlung Verpackung',deliveryDate:'',boxes:0,flavors:[],
+     payments:[{id:'p00',ref:'PF0037',desc:'Anzahlung Verpackung 30%',dueDate:'2026-04-23',paidDate:'2026-04-23',amount:40050}]},
+    {id:'d1',name:'Lieferung 1',deliveryDate:'2026-06-20',boxes:4000,
+     flavors:[{name:'Zitrone',qty:1470},{name:'Orange',qty:980},{name:'Waldbeere',qty:1470},{name:'Differenz',qty:80}],
+     payments:[
+       {id:'p10',ref:'PF0037.02',desc:'Anzahlung 50%',dueDate:'2026-05-12',paidDate:'2026-05-12',amount:6230},
+       {id:'p11',ref:'PF0037.03',desc:'Restbetrag 50% nach Warenerhalt',dueDate:'2026-06-27',paidDate:'',amount:6230}]},
+    {id:'d2',name:'Lieferung 2',deliveryDate:'2026-07-15',boxes:5000,flavors:[],
+     payments:[
+       {id:'p20',ref:'PF0037.04',desc:'Anzahlung 50% (verschoben)',dueDate:'2026-05-20',paidDate:'',amount:7787.50},
+       {id:'p21',ref:'PF0037.05',desc:'Restbetrag 50% nach Warenerhalt',dueDate:'2026-07-22',paidDate:'',amount:7787.50}]},
+    {id:'d3',name:'Lieferung 3',deliveryDate:'2026-08-15',boxes:5000,flavors:[],
+     payments:[
+       {id:'p30',ref:'PF0037.06',desc:'Anzahlung 50%',dueDate:'2026-06-20',paidDate:'',amount:7787.50},
+       {id:'p31',ref:'PF0037.07',desc:'Restbetrag 50% nach Warenerhalt',dueDate:'2026-08-22',paidDate:'',amount:7787.50}]},
+    {id:'d4',name:'Lieferung 4',deliveryDate:'2026-10-01',boxes:5000,flavors:[],
+     payments:[
+       {id:'p40',ref:'PF0037.08',desc:'Anzahlung 50%',dueDate:'2026-08-06',paidDate:'',amount:7787.50},
+       {id:'p41',ref:'PF0037.09',desc:'Restbetrag 50% nach Warenerhalt',dueDate:'2026-10-08',paidDate:'',amount:7787.50}]},
+    {id:'d5',name:'Lieferung 5',deliveryDate:'2026-12-01',boxes:5000,flavors:[],
+     payments:[
+       {id:'p50',ref:'PF0037.10',desc:'Anzahlung 50%',dueDate:'2026-10-06',paidDate:'',amount:7787.50},
+       {id:'p51',ref:'PF0037.11',desc:'Restbetrag 50% nach Warenerhalt',dueDate:'2026-12-08',paidDate:'',amount:7787.50}]},
+    {id:'d6',name:'Lieferung 6',deliveryDate:'2027-02-01',boxes:6000,flavors:[],
+     payments:[
+       {id:'p60',ref:'PF0037.12',desc:'Anzahlung 50%',dueDate:'2026-12-07',paidDate:'',amount:9345},
+       {id:'p61',ref:'PF0037.13',desc:'Restbetrag 50% nach Warenerhalt',dueDate:'2027-02-08',paidDate:'',amount:9345}]}
+  ]
+};
+
+/* ── STATE ── */
+let state=JSON.parse(localStorage.getItem('moov_lief')||'null')||JSON.parse(JSON.stringify(DEF));
+let openDels=new Set(['d0','d1','d2']);
+let modalCtx=null;
+
+function save(){localStorage.setItem('moov_lief',JSON.stringify(state));}
+function uid(){return 'id'+Date.now()+Math.floor(Math.random()*1000);}
+function fmtDate(d){if(!d)return'–';const[y,m,dd]=d.split('-');return`${dd}.${m}.${y}`;}
+function fmtAmt(n){return state.contract.currency+' '+(+n||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2});}
+function today(){return new Date().toISOString().split('T')[0];}
+function getStatus(p){
+  if(p.paidDate)return'paid';
+  if(!p.dueDate)return'pending';
+  const due=new Date(p.dueDate),now=new Date();
+  if(due<now)return'overdue';
+  const soon=new Date();soon.setDate(soon.getDate()+45);
+  if(due<=soon)return'soon';
+  return'pending';
+}
+function statusLabel(s){return{paid:'Bezahlt',overdue:'Überfällig',soon:'Bald fällig',pending:'Ausstehend'}[s];}
+function statusDotCls(s){return{paid:'dot-paid',overdue:'dot-overdue',soon:'dot-soon',pending:'dot-pending'}[s];}
+function statusBadgeCls(s){return{paid:'badge-paid',overdue:'badge-overdue',soon:'badge-soon',pending:'badge-pending'}[s];}
+function statusIcon(s){return{paid:'✓',overdue:'!',soon:'!',pending:'○'}[s];}
+
+/* ── COMPUTE TOTALS ── */
+function getTotals(){
+  const allPayments=state.deliveries.flatMap(d=>d.payments);
+  const total=allPayments.reduce((s,p)=>s+(+p.amount||0),0);
+  const paid=allPayments.filter(p=>p.paidDate).reduce((s,p)=>s+(+p.amount||0),0);
+  const open=total-paid;
+  const overdue=allPayments.filter(p=>getStatus(p)==='overdue').reduce((s,p)=>s+(+p.amount||0),0);
+  const nextPayments=allPayments.filter(p=>!p.paidDate&&p.dueDate).sort((a,b)=>a.dueDate.localeCompare(b.dueDate));
+  const next=nextPayments[0]||null;
+  return{total,paid,open,overdue,next,paidPct:total>0?paid/total*100:0};
+}
+
+/* ── RENDER ── */
+function render(){
+  save();
+  const t=getTotals();
+  document.getElementById('today-lbl').textContent=fmtDate(today());
+  document.getElementById('contract-sub').textContent=
+    `${state.contract.ref} · ${(+state.contract.totalUnits||0).toLocaleString('de-CH')} Einheiten · ${state.contract.currency} ${(+state.contract.pricePerUnit||0).toFixed(2)}/Stk`;
+
+  // Summary
+  document.getElementById('summary').innerHTML=`
+    <div class="sum-card"><div class="sum-lbl">Gesamtbestellung</div><div class="sum-val">${fmtAmt(t.total)}</div><div class="sum-sub">${(+state.contract.totalUnits||0).toLocaleString('de-CH')} Einheiten</div></div>
+    <div class="sum-card"><div class="sum-lbl">Bezahlt</div><div class="sum-val c-teal">${fmtAmt(t.paid)}</div><div class="sum-sub">${t.paidPct.toFixed(1)}% des Totals</div></div>
+    <div class="sum-card"><div class="sum-lbl">Noch offen</div><div class="sum-val c-red">${fmtAmt(t.open)}</div><div class="sum-sub">${(100-t.paidPct).toFixed(1)}% des Totals</div></div>
+    <div class="sum-card"><div class="sum-lbl">Nächste Zahlung</div>
+      <div class="sum-val c-amb" style="font-size:16px">${t.next?fmtAmt(t.next.amount):'–'}</div>
+      <div class="sum-sub">${t.next?t.next.ref+' · '+fmtDate(t.next.dueDate):'Keine offenen'}</div>
+    </div>`;
+
+  // Progress
+  document.getElementById('progress').innerHTML=`
+    <div class="prog-row"><span>Bezahlt: ${fmtAmt(t.paid)}</span><span>${t.paidPct.toFixed(1)}%</span></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:${t.paidPct}%"></div></div>
+    <div class="prog-legend">
+      <div class="leg"><div class="leg-dot" style="background:var(--teal)"></div>Bezahlt (${fmtAmt(t.paid)})</div>
+      ${t.overdue>0?`<div class="leg"><div class="leg-dot" style="background:var(--red)"></div>Überfällig (${fmtAmt(t.overdue)})</div>`:''}
+      <div class="leg"><div class="leg-dot" style="background:var(--sur2);border:1px solid var(--bd)"></div>Ausstehend (${fmtAmt(t.open)})</div>
+    </div>`;
+
+  // Alerts
+  const overduePayments=state.deliveries.flatMap(d=>d.payments.map(p=>({...p,delName:d.name}))).filter(p=>getStatus(p)==='overdue');
+  document.getElementById('alerts').innerHTML=overduePayments.map(p=>
+    `<div class="alert">⚠️ <strong>${p.ref}</strong> – ${p.delName}: ${fmtAmt(p.amount)} war fällig am ${fmtDate(p.dueDate)}</div>`).join('');
+
+  // Deliveries
+  document.getElementById('deliveries-list').innerHTML=state.deliveries.map(d=>renderDelivery(d)).join('');
+}
+
+function renderDelivery(d){
+  const isOpen=openDels.has(d.id);
+  const allPaid=d.payments.every(p=>p.paidDate);
+  const hasOverdue=d.payments.some(p=>getStatus(p)==='overdue');
+  const totalAmt=d.payments.reduce((s,p)=>s+(+p.amount||0),0);
+  const payRows=d.payments.map(p=>renderPaymentRow(d.id,p)).join('');
+  const flavorChips=d.flavors?.length?`<div class="flavor-wrap">${d.flavors.map(f=>`<div class="flavor-chip"><span class="flavor-name">${f.name}</span><span class="flavor-qty">${f.qty.toLocaleString('de-CH')}</span><button class="icon-btn" style="width:18px;height:18px;font-size:9px" onclick="editFlavor('${d.id}','${f.name}')">✏</button></div>`).join('')}<button class="btn btn-sm" onclick="addFlavor('${d.id}')">+ Geschmack</button></div>`:'<div style="margin-top:8px;"><button class="btn btn-sm" onclick="addFlavor(\''+d.id+'\')">+ Geschmack hinzufüegen</button></div>';
+  return`<div class="del-card${hasOverdue?' warn':''}">
+    <div class="del-hdr" onclick="toggleDel('${d.id}')">
+      <span class="del-name">${d.name}</span>
+      <span class="del-date">${d.deliveryDate?'📦 '+fmtDate(d.deliveryDate):''}</span>
+      <span class="del-boxes">${d.boxes?d.boxes.toLocaleString('de-CH')+' Boxen':''}</span>
+      <span class="del-total">${fmtAmt(totalAmt)}</span>
+      <div class="del-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn btn-sm" onclick="openEditDelivery('${d.id}')" title="Bearbeiten">✏️</button>
+      </div>
+      <span class="del-arr ${isOpen?'open':''}">▼</span>
+    </div>
+    <div class="del-body ${isOpen?'open':''}">
+      ${payRows}
+      ${d.id!=='d0'?flavorChips:''}
+      <div class="add-pay-row">
+        <button class="btn btn-sm" onclick="openAddPayment('${d.id}')">+ Zahlung hinzufüegen</button>
+        <button class="btn btn-sm btn-red" style="margin-left:auto" onclick="deleteDelivery('${d.id}')">🗑 Lieferung löschen</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function renderPaymentRow(delId,p){
+  const s=getStatus(p);
+  return`<div class="pay-row">
+    <div class="pay-status-dot ${statusDotCls(s)}">${statusIcon(s)}</div>
+    <span class="pay-ref">${p.ref||'–'}</span>
+    <span class="pay-desc">${p.desc}</span>
+    <span class="pay-due">${p.dueDate?fmtDate(p.dueDate):'–'}</span>
+    <span class="pay-amt ${s==='overdue'?'c-red':s==='paid'?'c-teal':''}">${fmtAmt(p.amount)}</span>
+    <span class="pay-badge ${statusBadgeCls(s)}">${statusLabel(s)}</span>
+    <div class="pay-row-actions">
+      ${!p.paidDate?`<button class="icon-btn mark-paid" onclick="quickPay('${delId}','${p.id}')" title="Als bezahlt markieren">✓</button>`:''}
+      <button class="icon-btn" onclick="openEditPayment('${delId}','${p.id}')" title="Bearbeiten">✏️</button>
+    </div>
+  </div>`;
+}
+
+function toggleDel(id){
+  if(openDels.has(id))openDels.delete(id);else openDels.add(id);
+  render();
+}
+
+/* ── QUICK PAY ── */
+function quickPay(delId,payId){
+  const d=state.deliveries.find(x=>x.id===delId);
+  const p=d?.payments.find(x=>x.id===payId);
+  if(!p)return;
+  const date=prompt('Bezahlt am (JJJJ-MM-TT):', today());
+  if(date===null)return;
+  p.paidDate=date||today();
+  render();
+}
+
+/* ── MODAL ── */
+function openModal(title,bodyHtml,ctx,showDelete=false){
+  modalCtx=ctx;
+  document.getElementById('modal-title').textContent=title;
+  document.getElementById('modal-body').innerHTML=bodyHtml;
+  document.getElementById('modal-del-zone').style.display=showDelete?'block':'none';
+  document.getElementById('modal').style.display='flex';
+}
+function closeModal(){document.getElementById('modal').style.display='none';modalCtx=null;}
+
+function openContractModal(){
+  const c=state.contract;
+  openModal('Vertrag bearbeiten',`
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Referenz</label><input class="modal-input" id="m-ref" value="${c.ref}"></div>
+      <div class="modal-field"><label class="modal-label">Lieferant</label><input class="modal-input" id="m-sup" value="${c.supplier||''}"></div>
+    </div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Preis/Stk</label><input class="modal-input" id="m-price" type="number" step="0.01" value="${c.pricePerUnit}"></div>
+      <div class="modal-field"><label class="modal-label">Total Einheiten</label><input class="modal-input" id="m-units" type="number" value="${c.totalUnits}"></div>
+    </div>
+    <div class="modal-field"><label class="modal-label">Währung</label><input class="modal-input" id="m-cur" value="${c.currency}"></div>
+  `,{type:'contract'});
+}
+
+function openAddDelivery(){
+  openModal('Neue Lieferung',`
+    <div class="modal-field"><label class="modal-label">Name</label><input class="modal-input" id="m-name" value="Lieferung ${state.deliveries.length}" placeholder="z.B. Lieferung 7"></div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Lieferdatum</label><input class="modal-input" id="m-deldate" type="date"></div>
+      <div class="modal-field"><label class="modal-label">Boxen</label><input class="modal-input" id="m-boxes" type="number" value="5000"></div>
+    </div>
+  `,{type:'add-delivery'});
+}
+
+function openEditDelivery(delId){
+  const d=state.deliveries.find(x=>x.id===delId);
+  openModal('Lieferung bearbeiten',`
+    <div class="modal-field"><label class="modal-label">Name</label><input class="modal-input" id="m-name" value="${d.name}"></div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Lieferdatum</label><input class="modal-input" id="m-deldate" type="date" value="${d.deliveryDate||''}"></div>
+      <div class="modal-field"><label class="modal-label">Boxen</label><input class="modal-input" id="m-boxes" type="number" value="${d.boxes||0}"></div>
+    </div>
+  `,{type:'edit-delivery',delId},true);
+}
+
+function openAddPayment(delId){
+  openModal('Zahlung hinzufüegen',`
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Referenz</label><input class="modal-input" id="m-pref" placeholder="PF0037.14"></div>
+      <div class="modal-field"><label class="modal-label">Betrag</label><input class="modal-input" id="m-amt" type="number" step="0.01" placeholder="0.00"></div>
+    </div>
+    <div class="modal-field"><label class="modal-label">Beschreibung</label><input class="modal-input" id="m-desc" placeholder="Anzahlung 50%"></div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Fälligkeitsdatum</label><input class="modal-input" id="m-due" type="date"></div>
+      <div class="modal-field"><label class="modal-label">Bezahlt am (leer = ausstehend)</label><input class="modal-input" id="m-paid" type="date"></div>
+    </div>
+  `,{type:'add-payment',delId});
+}
+
+function openEditPayment(delId,payId){
+  const d=state.deliveries.find(x=>x.id===delId);
+  const p=d?.payments.find(x=>x.id===payId);
+  openModal('Zahlung bearbeiten',`
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Referenz</label><input class="modal-input" id="m-pref" value="${p.ref||''}"></div>
+      <div class="modal-field"><label class="modal-label">Betrag</label><input class="modal-input" id="m-amt" type="number" step="0.01" value="${p.amount}"></div>
+    </div>
+    <div class="modal-field"><label class="modal-label">Beschreibung</label><input class="modal-input" id="m-desc" value="${p.desc||''}"></div>
+    <div class="modal-row">
+      <div class="modal-field"><label class="modal-label">Fälligkeitsdatum</label><input class="modal-input" id="m-due" type="date" value="${p.dueDate||''}"></div>
+      <div class="modal-field"><label class="modal-label">Bezahlt am (leer = ausstehend)</label><input class="modal-input" id="m-paid" type="date" value="${p.paidDate||''}"></div>
+    </div>
+  `,{type:'edit-payment',delId,payId},true);
+}
+
+function addFlavor(delId){
+  const name=prompt('Geschmack Name:','');if(!name)return;
+  const qty=+prompt('Anzahl:','0')||0;
+  const d=state.deliveries.find(x=>x.id===delId);
+  if(!d.flavors)d.flavors=[];
+  d.flavors.push({name,qty});
+  render();
+}
+function editFlavor(delId,fname){
+  const d=state.deliveries.find(x=>x.id===delId);
+  const f=d?.flavors?.find(x=>x.name===fname);
+  if(!f)return;
+  const qty=+prompt(`Anzahl für ${fname}:`,f.qty);
+  if(isNaN(qty))return;
+  if(qty<0){d.flavors=d.flavors.filter(x=>x.name!==fname);}else{f.qty=qty;}
+  render();
+}
+
+function modalSave(){
+  const ctx=modalCtx;if(!ctx)return;
+  const g=id=>document.getElementById(id)?.value?.trim();
+  if(ctx.type==='contract'){
+    state.contract={ref:g('m-ref'),supplier:g('m-sup'),pricePerUnit:+g('m-price')||4.45,totalUnits:+g('m-units')||30000,currency:g('m-cur')||'EUR'};
+  } else if(ctx.type==='add-delivery'){
+    state.deliveries.push({id:uid(),name:g('m-name')||'Neue Lieferung',deliveryDate:g('m-deldate')||'',boxes:+g('m-boxes')||0,flavors:[],payments:[]});
+  } else if(ctx.type==='edit-delivery'){
+    const d=state.deliveries.find(x=>x.id===ctx.delId);
+    if(d){d.name=g('m-name')||d.name;d.deliveryDate=g('m-deldate')||'';d.boxes=+g('m-boxes')||0;}
+  } else if(ctx.type==='add-payment'){
+    const d=state.deliveries.find(x=>x.id===ctx.delId);
+    if(d)d.payments.push({id:uid(),ref:g('m-pref'),desc:g('m-desc'),amount:+g('m-amt')||0,dueDate:g('m-due'),paidDate:g('m-paid')});
+  } else if(ctx.type==='edit-payment'){
+    const d=state.deliveries.find(x=>x.id===ctx.delId);
+    const p=d?.payments.find(x=>x.id===ctx.payId);
+    if(p){p.ref=g('m-pref');p.desc=g('m-desc');p.amount=+g('m-amt')||0;p.dueDate=g('m-due');p.paidDate=g('m-paid');}
+  }
+  closeModal();render();
+}
+
+function modalDelete(){
+  const ctx=modalCtx;if(!ctx)return;
+  if(ctx.type==='edit-delivery'){deleteDelivery(ctx.delId,true);}
+  else if(ctx.type==='edit-payment'){
+    if(!confirm('Zahlung wirklich löschen?'))return;
+    const d=state.deliveries.find(x=>x.id===ctx.delId);
+    if(d)d.payments=d.payments.filter(x=>x.id!==ctx.payId);
+    closeModal();render();
+  }
+}
+
+function deleteDelivery(id,skipConfirm=false){
+  if(!skipConfirm&&!confirm('Lieferung wirklich löschen?'))return;
+  if(!confirm('Wirklich? Alle Zahlungen dieser Lieferung werden gelöscht.'))return;
+  state.deliveries=state.deliveries.filter(x=>x.id!==id);
+  openDels.delete(id);closeModal();render();
+}
+
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+render();
+</script>
+</body>
+</html>
