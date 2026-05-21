@@ -618,9 +618,14 @@ async function saveAd(adId){
     notes:getVal('ad-notes-'+adId)
   };
   Object.assign(ad,updates);
-  await dbUpdate('ads',adId,updates);
-  // Update title in card header without re-rendering
-  const titleEl=document.querySelector(`#acard-${adId} .ac-t`);
+  try{
+    await dbUpdate('ads',adId,updates);
+  }catch(e){
+    // filming_notes might not exist - save without it
+    const{filming_notes,...updatesWithout}=updates;
+    await dbUpdate('ads',adId,updatesWithout);
+  }
+  const titleEl=document.querySelector('#acard-'+adId+' .ac-t');
   if(titleEl)titleEl.textContent=updates.title||'Ohne Titel';
   const msg=document.getElementById('save-msg-'+adId);
   if(msg){msg.textContent='✓ Gespeichert';setTimeout(()=>{msg.textContent='';},2000);}
@@ -659,6 +664,8 @@ function renderNewAd(){
 async function addAd(){
   const title=document.getElementById('n-title').value.trim();
   if(!title){document.getElementById('n-msg').innerHTML='<span style="color:var(--lo-c);font-size:12px;">Bitte einen Titel eingeben.</span>';return;}
+  const msgEl=document.getElementById('n-msg');
+  msgEl.innerHTML='<span style="color:var(--tx2);font-size:12px;">Speichert...</span>';
   const newAd={
     title,
     type:document.getElementById('n-type').value.trim(),
@@ -668,11 +675,22 @@ async function addAd(){
     status:document.getElementById('n-status').value,
     notes:''
   };
-  const result=await dbInsert('ads',newAd);
-  if(result)ads.push(result[0]);
-  renderSidebar();
-  document.getElementById('n-msg').innerHTML='<div class="msg-ok">✓ Ad erfolgreich hinzugefügt!</div>';
-  setTimeout(()=>renderNewAd(),1500);
+  try{
+    let result=null;
+    try{
+      result=await dbInsert('ads',newAd);
+    }catch(e){
+      // filming_notes column might not exist yet – try without it
+      const{filming_notes,...adWithout}=newAd;
+      result=await dbInsert('ads',adWithout);
+    }
+    if(result)ads.push(result[0]);
+    renderSidebar();
+    msgEl.innerHTML='<div class="msg-ok">✓ Ad erfolgreich hinzugefügt!</div>';
+    setTimeout(()=>renderNewAd(),1500);
+  }catch(err){
+    msgEl.innerHTML='<span style="color:var(--lo-c);font-size:12px;">Fehler: '+err.message+'</span>';
+  }
 }
 
 /* ── PERFORMANCE ── */
