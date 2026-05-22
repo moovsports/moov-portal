@@ -225,7 +225,7 @@ var ST = null;
 
 var OPEN = {}; // which deliveries are expanded
 var OOPEN = {}; // which orders are expanded (both sections)
-ST.orders.forEach(function(o) { OOPEN[o.id+'_del']=1; OOPEN[o.id+'_pay']=1; });
+ST.orders.forEach(function(o) { OOPEN[o.id+'_del']=1; OOPEN[o.id+'_pay']=1; OOPEN[o.id+'_order']=0; });
 var CTX = null;
 
 function save() { try { localStorage.setItem(SAVE_KEY, JSON.stringify(ST)); } catch(e) {} }
@@ -281,91 +281,118 @@ function render() {
 function renderOrder(o) {
   var t = orderTotals(o);
   var cur = o.currency||'EUR';
+  var orderOpen = !!OOPEN[o.id+'_order'];
+
+  // Chips for collapsed header
+  var statusChip = '';
+  if(t.od.length) statusChip = '<span class="chip cr2">'+t.od.length+' Überfällig</span>';
+  else if(t.pct>=100) statusChip = '<span class="chip cg2">Vollständig bezahlt</span>';
+  else if(t.nxt) {
+    var s = gs(t.nxt);
+    if(s==='soon') statusChip = '<span class="chip ca2">Bald fällig</span>';
+  }
+
+  var headerH =
+    '<div style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:16px 18px;flex-wrap:wrap;" onclick="toggleSection(''+o.id+'_order')">'+
+      '<div style="display:flex;flex-direction:column;gap:3px;flex:1;min-width:0;">'+
+        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+
+          '<span class="oc-ref">'+e(o.ref)+'</span>'+
+          '<span class="oc-name" style="font-size:15px;font-weight:700;">'+e(o.supplier||o.ref)+'</span>'+
+          statusChip+
+        '</div>'+
+        '<div style="display:flex;align-items:center;gap:16px;margin-top:4px;flex-wrap:wrap;">'+
+          '<span style="font-size:12px;color:var(--tx2);">Gesamt: <strong style="color:var(--tx)">'+fa(t.tot,cur)+'</strong></span>'+
+          '<span style="font-size:12px;color:var(--green);">Bezahlt: '+fa(t.paid,cur)+' ('+t.pct.toFixed(0)+'%)</span>'+
+          (t.nxt?'<span style="font-size:12px;color:var(--amber);">Nächste: '+fa(t.nxt.amount,cur)+' am '+fd(t.nxt.dueDate)+'</span>':'')+
+          '<span style="font-size:12px;color:var(--tx3);">'+o.deliveries.length+' Teillieferungen</span>'+
+        '</div>'+
+      '</div>'+
+      '<div style="display:flex;align-items:center;gap:6px;" onclick="event.stopPropagation()">'+
+        '<button class="btn btn-sm" onclick="openEditOrder(''+o.id+'')">&#x270F;</button>'+
+        '<button class="btn btn-sm btn-d" onclick="delOrder(''+o.id+'')">&#x1F5D1;</button>'+
+      '</div>'+
+      '<div style="font-size:10px;color:var(--tx3);padding:4px;transition:transform .2s;'+(orderOpen?'transform:rotate(180deg)':'')+'">&#x25BC;</div>'+
+    '</div>'+
+    // Progress bar always visible in header
+    '<div style="padding:0 18px 12px;cursor:pointer;" onclick="toggleSection(''+o.id+'_order')">'+
+      '<div style="height:5px;background:var(--sur3);border-radius:20px;overflow:hidden;">'+
+        '<div style="height:100%;border-radius:20px;background:'+(t.od.length?'var(--red)':'var(--green)')+';width:'+t.pct.toFixed(1)+'%;transition:width .4s;"></div>'+
+      '</div>'+
+    '</div>';
+
+  if (!orderOpen) {
+    return '<div class="oc">'+headerH+'</div>';
+  }
+
+  // ── EXPANDED VIEW (same as before) ──
   var nxtTxt = t.nxt ? fa(t.nxt.amount,cur) : '–';
   var nxtSub = t.nxt ? (e(t.nxt.ref)+' &middot; '+fd(t.nxt.dueDate)) : 'Keine offen';
   var delOpen = !!OOPEN[o.id+'_del'];
   var payOpen = !!OOPEN[o.id+'_pay'];
 
-  // Alerts
   var alertsH = '';
   t.od.forEach(function(x) {
-    alertsH += '<div class="alrt"><span>(!)</span><span><strong>'+e(x.p.ref)+'</strong> &ndash; '+e(x.dName)+': '+fa(x.p.amount,cur)+' f&auml;llig am '+fd(x.p.dueDate)+(x.p.notes?' ('+e(x.p.notes)+')':'')+'</span></div>';
+    alertsH += '<div class="alrt"><span>(!)</span><span><strong>'+e(x.p.ref)+'</strong> &ndash; '+e(x.dName)+': '+fa(x.p.amount,cur)+' fällig am '+fd(x.p.dueDate)+(x.p.notes?' ('+e(x.p.notes)+')':'')+'</span></div>';
   });
 
-  // Deliveries section
   var delH = '';
   o.deliveries.forEach(function(d) { delH += renderDelivery(o, d); });
 
-  // Payments across all deliveries (flat view)
   var allPays = [];
   o.deliveries.forEach(function(d) {
     d.payments.forEach(function(p) { allPays.push({p:p, dName:d.name, did:d.id, oid:o.id}); });
   });
-  allPays.sort(function(a,b){ var da=a.p.dueDate||'',db=b.p.dueDate||''; return da.localeCompare(db); });
+  allPays.sort(function(a,b){ return (a.p.dueDate||'').localeCompare(b.p.dueDate||''); });
+
   var payRows = '';
   allPays.forEach(function(x) {
     var p=x.p, s=gs(p);
     var ac = s==='overdue'?'cr':s==='paid'?'cg':'';
     var ph = parseFloat(p.amount_paid)>0&&!p.paidDate ? '<div class="pa">davon: '+fa(p.amount_paid,cur)+'</div>' : '';
     var pb = p.paidDate
-      ? '<button class="ib" title="R\u00fckg\u00e4ngig" onclick="unpay(\''+x.oid+'\',\''+x.did+'\',\''+p.id+'\')">&#x21A9;</button>'
-      : '<button class="ib ib-p" title="Bezahlt" onclick="qpay(\''+x.oid+'\',\''+x.did+'\',\''+p.id+'\')">&#x2713;</button>';
+      ? '<button class="ib" title="Rükgängig" onclick="unpay(''+x.oid+'',''+x.did+'',''+p.id+'')">&#x21A9;</button>'
+      : '<button class="ib ib-p" title="Bezahlt" onclick="qpay(''+x.oid+'',''+x.did+'',''+p.id+'')">&#x2713;</button>';
     payRows += '<tr>'+
       '<td class="tref">'+e(p.ref||'–')+'</td>'+
       '<td class="tdesc"><div class="dn">'+e(p.desc)+'</div>'+(p.notes?'<div class="note">'+e(p.notes)+'</div>':'')+'<div style="font-size:10px;color:var(--tx3)">'+e(x.dName)+'</div></td>'+
       '<td class="tdate"><div class="dd">'+fd(p.dueDate)+'</div>'+(p.paidDate?'<div class="dp">&#x2713; '+fd(p.paidDate)+'</div>':'')+'</td>'+
       '<td><span class="badge '+SB[s]+'">'+SL[s]+'</span></td>'+
       '<td class="tamt"><div class="am '+ac+'">'+fa(p.amount,cur)+'</div>'+ph+'</td>'+
-      '<td><div class="abtns">'+pb+'<button class="ib" onclick="openEditPay(\''+x.oid+'\',\''+x.did+'\',\''+p.id+'\')">&#x270F;</button></div></td>'+
+      '<td><div class="abtns">'+pb+'<button class="ib" onclick="openEditPay(''+x.oid+'',''+x.did+'',''+p.id+'')">&#x270F;</button></div></td>'+
     '</tr>';
   });
 
   return '<div class="oc">'+
-    // Header
-    '<div class="oc-hdr">'+
-      '<span class="oc-ref">'+e(o.ref)+'</span>'+
-      '<span class="oc-name">'+e(o.supplier||o.ref)+'</span>'+
-      '<div class="oc-btns">'+
-        '<button class="btn btn-sm" onclick="openEditOrder(\''+o.id+'\')">&#x270F; Bearbeitung</button>'+
-        '<button class="btn btn-sm btn-d" onclick="delOrder(\''+o.id+'\')">&#x1F5D1;</button>'+
-      '</div>'+
-    '</div>'+
-    // Summary
+    headerH+
+    '<div style="border-top:1px solid var(--bd);">'+
     '<div class="sum-row">'+
       '<div class="sc"><div class="sc-l">Gesamt</div><div class="sc-v">'+fa(t.tot,cur)+'</div><div class="sc-s">'+((o.totalUnits||0).toLocaleString('de-CH'))+' Stk</div></div>'+
       '<div class="sc"><div class="sc-l">Bezahlt</div><div class="sc-v cg">'+fa(t.paid,cur)+'</div><div class="sc-s">'+t.pct.toFixed(1)+'%</div></div>'+
       '<div class="sc"><div class="sc-l">Offen</div><div class="sc-v cr">'+fa(t.open,cur)+'</div><div class="sc-s">'+(100-t.pct).toFixed(1)+'%</div></div>'+
-      '<div class="sc"><div class="sc-l">N\u00e4chste Zahlung</div><div class="sc-v ca" style="font-size:14px">'+nxtTxt+'</div><div class="sc-s">'+nxtSub+'</div></div>'+
+      '<div class="sc"><div class="sc-l">Nächste Zahlung</div><div class="sc-v ca" style="font-size:14px">'+nxtTxt+'</div><div class="sc-s">'+nxtSub+'</div></div>'+
     '</div>'+
-    // Progress
-    '<div class="prog-wrap">'+
-      '<div class="prog-t"><span>Zahlungsfortschritt</span><span>'+fa(t.paid,cur)+' / '+fa(t.tot,cur)+'</span></div>'+
-      '<div class="pbar"><div class="pfill" style="width:'+t.pct.toFixed(1)+'%"></div></div>'+
-    '</div>'+
-    alertsH +
-    // Deliveries section
+    alertsH+
     '<div class="sec-wrap">'+
-      '<div class="sec-hdr" style="cursor:pointer" onclick="toggleSection(\''+o.id+'_del\')">'+
+      '<div class="sec-hdr" style="cursor:pointer" onclick="toggleSection(''+o.id+'_del')">'+
         '<div class="sec-lbl">Teillieferungen ('+o.deliveries.length+')</div>'+
         '<div style="display:flex;gap:6px;align-items:center;">'+
-          '<button class="btn btn-sm btn-p" onclick="event.stopPropagation();openAddDel(\''+o.id+'\')">+ Teillieferung</button>'+
+          '<button class="btn btn-sm btn-p" onclick="event.stopPropagation();openAddDel(''+o.id+'')">+ Teillieferung</button>'+
           '<span style="font-size:9px;color:var(--tx3);transition:transform .2s;'+(delOpen?'transform:rotate(180deg)':'')+'">&#x25BC;</span>'+
         '</div>'+
       '</div>'+
       (delOpen ? '<div>'+delH+'</div>' : '')+
     '</div>'+
-    // Payments section
     '<div class="sec-wrap" style="border-top:1px solid var(--bd)">'+
-      '<div class="sec-hdr" style="cursor:pointer" onclick="toggleSection(\''+o.id+'_pay\')">'+
-        '<div class="sec-lbl">Zahlungsplan ('+allPays.length+' Eintr\u00e4ge)</div>'+
-        '<div style="display:flex;gap:6px;align-items:center;">'+
-          '<span style="font-size:9px;color:var(--tx3);transition:transform .2s;'+(payOpen?'transform:rotate(180deg)':'')+'">&#x25BC;</span>'+
-        '</div>'+
+      '<div class="sec-hdr" style="cursor:pointer" onclick="toggleSection(''+o.id+'_pay')">'+
+        '<div class="sec-lbl">Zahlungsplan ('+allPays.length+' Einträge)</div>'+
+        '<span style="font-size:9px;color:var(--tx3);transition:transform .2s;'+(payOpen?'transform:rotate(180deg)':'')+'">&#x25BC;</span>'+
       '</div>'+
-      (payOpen ? '<div style="overflow-x:auto;"><table class="pt"><thead><tr><th>Ref.</th><th>Beschreibung</th><th>F\u00e4llig</th><th>Status</th><th style="text-align:right">Betrag</th><th></th></tr></thead><tbody>'+payRows+'</tbody></table></div>' : '')+
+      (payOpen ? '<div style="overflow-x:auto;"><table class="pt"><thead><tr><th>Ref.</th><th>Beschreibung</th><th>Fällig</th><th>Status</th><th style="text-align:right">Betrag</th><th></th></tr></thead><tbody>'+payRows+'</tbody></table></div>' : '')+
+    '</div>'+
     '</div>'+
   '</div>';
 }
+
 
 function renderDelivery(o, d) {
   var pays = d.payments||[];
