@@ -146,8 +146,8 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
 </div>
 <script>
 // ── STORAGE KEYS (try newest first, migrate old)
-var KEYS = ['moov_lief6','moov_lief5','moov_lief4','moov_lief3','moov_lief2','moov_lief'];
-var SAVE_KEY = 'moov_lief6';
+var KEYS = ['moov_lieferungen','moov_lief6','moov_lief5','moov_lief4','moov_lief3','moov_lief2','moov_lief'];
+var SAVE_KEY = 'moov_lieferungen';
 
 // ── DEFAULT DATA
 var DEF = {orders:[{
@@ -555,7 +555,15 @@ function md() { // modal delete
   cm(); render();
 }
 document.addEventListener('keydown',function(evt){if(evt.key==='Escape')cm();});
-render();
+try {
+  render();
+} catch(err) {
+  document.getElementById('orders').innerHTML =
+    '<div style="padding:20px;background:#FEE2E2;border-radius:12px;color:#DC2626;font-family:monospace;font-size:12px;margin:16px 0;">' +
+    '<strong>Fehler beim Laden:</strong><br>' + err.message + '<br><br>' +
+    '<button onclick="if(confirm('Daten zuruecksetzen?\')){localStorage.removeItem(SAVE_KEY);location.reload();}" style="padding:6px 14px;background:#DC2626;color:#fff;border:none;border-radius:7px;cursor:pointer;font-family:Inter,sans-serif;font-size:12px;">Daten zuruecksetzen</button>' +
+    '</div>';
+}
 </script>
 </body>
 </html>
