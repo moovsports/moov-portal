@@ -20,7 +20,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
 .bsm{font-size:11px;padding:4px 10px;border-radius:7px;}
 .bd{color:var(--red);border-color:rgba(220,38,38,.2);background:#FEE2E2;}
 .ba{color:var(--amber);border-color:rgba(217,119,6,.22);background:#FEF3C7;}
-.oc{background:var(--sur);border:1px solid var(--bd);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);}
+.oc{background:var(--sur);border:1px solid var(--bd);border-radius:14px;margin-bottom:14px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.07);}
 .sum-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:10px 18px 12px;background:var(--sur2);}
 .scard{background:var(--sur);border:1px solid var(--bd);border-radius:10px;padding:10px 13px;}
 .slbl2{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:4px;}
@@ -35,7 +35,7 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
 .dcw{border-color:rgba(220,38,38,.28);}
 .dco{border-color:rgba(5,150,105,.2);}
 .boxrow{display:flex;align-items:center;gap:10px;margin-bottom:10px;background:var(--sur);border:1px solid var(--bd);border-radius:8px;padding:9px 11px;flex-wrap:wrap;}
-.chip{font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;display:inline-block;}
+.chip{font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:20px;font-weight:500;display:inline-block;margin-right:3px;}
 .cg2{background:#D1FAE5;color:var(--green);}
 .cr2{background:#FEE2E2;color:var(--red);}
 .ca2{background:#FEF3C7;color:var(--amber);}
@@ -62,8 +62,6 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
 .ml:first-child{margin-top:0;}
 .mi{width:100%;font-family:'Inter',sans-serif;font-size:14px;color:var(--tx);background:var(--sur2);border:1.5px solid var(--bd);border-radius:9px;padding:8px 11px;outline:none;transition:border-color .15s;}
 .mi:focus{border-color:var(--teal);background:#fff;}
-.g2a{display:inline-block;width:calc(50% - 4px);margin-right:8px;}
-.g2b{display:inline-block;width:calc(50% - 4px);}
 .mbtns{display:flex;gap:7px;margin-top:14px;}
 .mbtns .btn{flex:1;justify-content:center;padding:9px;}
 .mdel{margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);}
@@ -77,13 +75,12 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
       <div class="hdr-sub">Lieferantenuebersicht &middot; <span id="today"></span></div>
     </div>
     <div class="hdr-btns">
-      <button class="btn bsm bd" onclick="resetToDefaults()">&#x21BA; Zuruecksetzen</button>
+      <button class="btn bsm bd" onclick="resetToDefaults()">&#x21BA; Reset</button>
       <button class="btn bp" onclick="openAddOrder()">+ Bestellung</button>
     </div>
   </div>
   <div id="orders"></div>
 </div>
-
 <div class="overlay" id="modal" style="display:none" onclick="if(event.target===this)closeModal()">
   <div class="modal">
     <div class="mh" id="mh"></div>
@@ -97,14 +94,14 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
     </div>
   </div>
 </div>
-
 <script>
 
 var SAVE_KEY = 'moov_lieferungen';
 var OLD_KEYS = ['moov_lief6','moov_lief5','moov_lief4','moov_lief3','moov_lief2','moov_lief'];
 
+// Default data
 var DEF = {orders:[{
-  id:'o1', ref:'PF0037', supplier:'NRSH GmbH', currency:'EUR',
+  id:'o1',ref:'PF0037',supplier:'NRSH GmbH',currency:'EUR',
   deliveries:[
     {id:'d0',name:'Anzahlung Verpackung',deliveryDate:'',stk_ordered:0,stk_received:0,netPrice:40050,shippingCost:0,flavors:[],
       payments:[{id:'p00',ref:'PF0037',desc:'Anzahlung Verpackung 30%',dueDate:'2026-04-23',paidDate:'2026-04-23',amount:40050,amount_paid:40050,notes:''}]},
@@ -136,621 +133,374 @@ var DEF = {orders:[{
   ]
 }]};
 
-// ---- STATE ----
+// State
 var ST = null;
-
-function loadState() {
-  var allKeys = [SAVE_KEY].concat(OLD_KEYS);
-  for (var i = 0; i < allKeys.length; i++) {
-    try {
-      var raw = localStorage.getItem(allKeys[i]);
-      if (!raw) continue;
-      var parsed = JSON.parse(raw);
-      if (!parsed) continue;
-      // Migrate old flat format
-      if (!parsed.orders && parsed.deliveries) {
-        var c = parsed.contract || {};
-        parsed = {orders:[{
-          id:'o1', ref:c.ref||'PF0037', supplier:c.supplier||'NRSH GmbH',
-          currency:c.currency||'EUR',
-          deliveries: parsed.deliveries.map(function(d) {
-            return {
-              id:d.id, name:d.name, deliveryDate:d.deliveryDate||'',
-              stk_ordered:d.boxes_ordered||d.stk_ordered||0,
-              stk_received:d.boxes_received||d.stk_received||0,
-              netPrice:d.netPrice||0, shippingCost:d.shippingCost||0,
-              flavors:d.flavors||[], payments:d.payments||[]
-            };
-          })
-        }]};
-      }
-      if (parsed.orders && parsed.orders.length > 0) {
-        ST = parsed;
-        break;
-      }
-    } catch(e) { /* try next key */ }
-  }
-  if (!ST) {
-    ST = JSON.parse(JSON.stringify(DEF));
-  }
-}
-
-function saveState() {
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(ST)); } catch(e) {}
-}
-
-function resetToDefaults() {
-  if (!confirm('Alle Daten zuruecksetzen?')) return;
-  localStorage.removeItem(SAVE_KEY);
-  ST = JSON.parse(JSON.stringify(DEF));
-  OPEN = {};
-  SECTION_OPEN = {};
-  initSectionOpen();
-  render();
-}
-
-// ---- SECTION OPEN STATE ----
-var OPEN = {};   // delivery body open
-var SECTION_OPEN = {};  // order-level sections
-
-function initSectionOpen() {
-  ST.orders.forEach(function(o) {
-    if (SECTION_OPEN[o.id + '_order'] === undefined) SECTION_OPEN[o.id + '_order'] = false;
-    if (SECTION_OPEN[o.id + '_del'] === undefined) SECTION_OPEN[o.id + '_del'] = true;
-    if (SECTION_OPEN[o.id + '_pay'] === undefined) SECTION_OPEN[o.id + '_pay'] = true;
-  });
-}
-
-// ---- HELPERS ----
+var OPEN = {};
+var SEC = {};
 var CTX = null;
 
-function uid() { return 'x' + Date.now() + Math.floor(Math.random() * 9999); }
-
-function esc(t) {
-  return String(t || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+function loadState() {
+  var keys = [SAVE_KEY].concat(OLD_KEYS);
+  for (var i=0;i<keys.length;i++) {
+    try {
+      var raw = localStorage.getItem(keys[i]);
+      if (!raw) continue;
+      var p = JSON.parse(raw);
+      if (!p) continue;
+      if (!p.orders && p.deliveries) {
+        var c = p.contract||{};
+        p = {orders:[{id:'o1',ref:c.ref||'PF0037',supplier:c.supplier||'NRSH GmbH',currency:c.currency||'EUR',
+          deliveries:p.deliveries.map(function(d){
+            return {id:d.id,name:d.name,deliveryDate:d.deliveryDate||'',
+              stk_ordered:d.boxes_ordered||d.stk_ordered||0,
+              stk_received:d.boxes_received||d.stk_received||0,
+              netPrice:d.netPrice||0,shippingCost:d.shippingCost||0,
+              flavors:d.flavors||[],payments:d.payments||[]};
+          })}]};
+      }
+      if (p.orders && p.orders.length) { ST=p; break; }
+    } catch(e) {}
+  }
+  if (!ST) ST = JSON.parse(JSON.stringify(DEF));
+  ST.orders.forEach(function(o) {
+    if (SEC[o.id+'_o']===undefined) SEC[o.id+'_o']=false;
+    if (SEC[o.id+'_d']===undefined) SEC[o.id+'_d']=true;
+    if (SEC[o.id+'_p']===undefined) SEC[o.id+'_p']=true;
+  });
 }
 
-function fmtDate(d) {
-  if (!d) return '-';
-  var p = d.split('-');
-  if (p.length !== 3) return d;
-  return p[2] + '.' + p[1] + '.' + p[0];
-}
-
-function fmtAmt(n, cur) {
-  var c = cur || (ST && ST.orders && ST.orders[0] ? ST.orders[0].currency : 'EUR') || 'EUR';
-  return c + ' ' + (parseFloat(n) || 0).toLocaleString('de-CH', {minimumFractionDigits:2, maximumFractionDigits:2});
-}
-
+function sv() { try { localStorage.setItem(SAVE_KEY,JSON.stringify(ST)); } catch(e) {} }
+function uid() { return 'x'+Date.now()+Math.floor(Math.random()*9999); }
+function esc(t) { return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function fd(d) { if(!d)return'-'; var p=d.split('-'); return p.length===3?p[2]+'.'+p[1]+'.'+p[0]:d; }
+function fa(n,cur) { return (cur||'EUR')+String.fromCharCode(160)+(parseFloat(n)||0).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function todayStr() { return new Date().toISOString().split('T')[0]; }
 
-function getStatus(p) {
+// KEY helper: build data attribute string (no quote issues!)
+function da(action, args) {
+  return ' data-a="'+action+'" data-args="'+esc(JSON.stringify(args||[]))+'"';
+}
+
+function gs(p) {
   if (p.paidDate) return 'paid';
-  var paid = parseFloat(p.amount_paid) || 0;
-  var amt  = parseFloat(p.amount) || 0;
-  if (paid > 0 && paid < amt) return 'partial';
+  var pd=parseFloat(p.amount_paid)||0,am=parseFloat(p.amount)||0;
+  if (pd>0&&pd<am) return 'partial';
   if (!p.dueDate) return 'pending';
-  var due = new Date(p.dueDate);
-  var now = new Date(); now.setHours(0,0,0,0);
-  if (due < now) return 'overdue';
-  var soon = new Date(); soon.setDate(soon.getDate() + 45);
-  if (due <= soon) return 'soon';
+  var due=new Date(p.dueDate),now=new Date();now.setHours(0,0,0,0);
+  if (due<now) return 'overdue';
+  var s=new Date();s.setDate(s.getDate()+45);
+  if (due<=s) return 'soon';
   return 'pending';
 }
+var SL={paid:'Bezahlt',partial:'Teilbezahlt',overdue:'Ueberfaellig',soon:'Bald faellig',pending:'Ausstehend'};
+var SB={paid:'bg',partial:'bb',overdue:'br',soon:'ba2',pending:'b5'};
 
-var STATUS_LABEL = {paid:'Bezahlt', partial:'Teilbezahlt', overdue:'Ueberfaellig', soon:'Bald faellig', pending:'Ausstehend'};
-var STATUS_BADGE = {paid:'bg',  partial:'bb', overdue:'br', soon:'ba', pending:'b5'};
-
-function orderTotals(o) {
-  var total = 0, paid = 0, od = [], up = [];
-  o.deliveries.forEach(function(d) {
-    d.payments.forEach(function(p) {
-      total += parseFloat(p.amount) || 0;
-      if (p.paidDate) paid += parseFloat(p.amount) || 0;
-      if (getStatus(p) === 'overdue') od.push({p:p, dName:d.name});
-      if (!p.paidDate && p.dueDate) up.push(p);
+function totals(o) {
+  var tot=0,paid=0,od=[],up=[];
+  o.deliveries.forEach(function(d){
+    d.payments.forEach(function(p){
+      tot+=parseFloat(p.amount)||0;
+      if(p.paidDate) paid+=parseFloat(p.amount)||0;
+      if(gs(p)==='overdue') od.push({p:p,dn:d.name});
+      if(!p.paidDate&&p.dueDate) up.push(p);
     });
   });
-  up.sort(function(a, b) { return a.dueDate.localeCompare(b.dueDate); });
-  return {
-    total: total, paid: paid, open: total - paid,
-    pct: total > 0 ? (paid / total * 100) : 0,
-    od: od, next: up[0] || null
+  up.sort(function(a,b){return a.dueDate.localeCompare(b.dueDate);});
+  return {tot:tot,paid:paid,open:tot-paid,pct:tot>0?paid/tot*100:0,od:od,nxt:up[0]||null};
+}
+
+function fO(id){for(var i=0;i<ST.orders.length;i++)if(ST.orders[i].id===id)return ST.orders[i];return null;}
+function fD(oid,did){var o=fO(oid);if(!o)return null;for(var i=0;i<o.deliveries.length;i++)if(o.deliveries[i].id===did)return o.deliveries[i];return null;}
+function fP(d,pid){for(var i=0;i<d.payments.length;i++)if(d.payments[i].id===pid)return d.payments[i];return null;}
+
+// Click dispatcher - all actions use data attributes, no inline onclick quote issues
+document.addEventListener('click', function(e) {
+  var el = e.target.closest('[data-a]');
+  if (!el) return;
+  e.stopPropagation();
+  var action = el.getAttribute('data-a');
+  var args = [];
+  try { args = JSON.parse(el.getAttribute('data-args')||'[]'); } catch(ex) {}
+  dispatch(action, args);
+});
+
+function dispatch(action, args) {
+  var fns = {
+    'toggleSec': function(a) { SEC[a[0]]=!SEC[a[0]]; render(); },
+    'toggleDel': function(a) { OPEN[a[0]]=!OPEN[a[0]]; render(); },
+    'qpay':      function(a) { var d=fD(a[0],a[1]),p=d&&fP(d,a[2]);if(!p)return;var dt=prompt('Bezahlt am (JJJJ-MM-TT):',todayStr());if(dt===null)return;p.paidDate=dt||todayStr();p.amount_paid=p.amount;render(); },
+    'unpay':     function(a) { if(!confirm('Zahlung rueckgaengig?'))return;var d=fD(a[0],a[1]),p=d&&fP(d,a[2]);if(p){p.paidDate='';p.amount_paid=0;render();} },
+    'delOrder':  function(a) { if(!confirm('Bestellung loeschen?'))return;ST.orders=ST.orders.filter(function(x){return x.id!==a[0];});render(); },
+    'delDel':    function(a) { if(!confirm('Teillieferung loeschen?'))return;var o=fO(a[0]);if(o)o.deliveries=o.deliveries.filter(function(x){return x.id!==a[1];});render(); },
+    'splitDel':  function(a) {
+      var o=fO(a[0]),d=fD(a[0],a[1]);if(!o||!d)return;
+      var stk=parseInt(d.stk_ordered)||0;
+      var s1=prompt('Stk fuer Teil A:',Math.floor(stk/2));if(s1===null)return;
+      var nd=JSON.parse(JSON.stringify(d));nd.id=uid();nd.name=d.name+' B';nd.stk_ordered=stk-(parseInt(s1)||stk);nd.stk_received=0;nd.payments=[];
+      d.stk_ordered=parseInt(s1)||stk;
+      var idx=o.deliveries.indexOf(d);o.deliveries.splice(idx+1,0,nd);render();
+    },
+    'editOrder': function(a) { openEditOrder(a[0]); },
+    'addDel':    function(a) { openAddDel(a[0]); },
+    'editDel':   function(a) { openEditDel(a[0],a[1]); },
+    'boxes':     function(a) { openBoxes(a[0],a[1]); },
+    'addPay':    function(a) { openAddPay(a[0],a[1]); },
+    'editPay':   function(a) { openEditPay(a[0],a[1],a[2]); },
+    'addFlav':   function(a) { openAddFlav(a[0],a[1]); },
+    'editFlavs': function(a) { openEditFlavs(a[0],a[1]); }
   };
+  if (fns[action]) fns[action](args);
 }
 
-function findOrder(oid) {
-  for (var i = 0; i < ST.orders.length; i++) {
-    if (ST.orders[i].id === oid) return ST.orders[i];
-  }
-  return null;
-}
-
-function findDelivery(oid, did) {
-  var o = findOrder(oid);
-  if (!o) return null;
-  for (var i = 0; i < o.deliveries.length; i++) {
-    if (o.deliveries[i].id === did) return o.deliveries[i];
-  }
-  return null;
-}
-
-function findPayment(d, pid) {
-  for (var i = 0; i < d.payments.length; i++) {
-    if (d.payments[i].id === pid) return d.payments[i];
-  }
-  return null;
-}
-
-// ---- RENDER ----
 function render() {
-  saveState();
-  document.getElementById('today').textContent = fmtDate(todayStr());
+  sv();
+  document.getElementById('today').textContent = fd(todayStr());
   var html = '';
-  ST.orders.forEach(function(o) {
-    html += buildOrder(o);
-  });
-  if (!html) {
-    html = '<div style="text-align:center;padding:40px;color:#9CA3AF;">Noch keine Bestellungen. Klicke auf &quot;+ Bestellung&quot;.</div>';
-  }
+  ST.orders.forEach(function(o){ html += buildOrder(o); });
+  if (!html) html = '<div style="text-align:center;padding:40px;color:#9CA3AF;">Noch keine Bestellungen.</div>';
   document.getElementById('orders').innerHTML = html;
 }
 
+function chip(cls, txt) { return '<span class="chip '+cls+'">'+txt+'</span>'; }
+function sc(l,v,s,c) { return '<div class="scard"><div class="slbl2">'+l+'</div><div class="sval '+c+'">'+v+'</div><div class="ssub">'+s+'</div></div>'; }
+
 function buildOrder(o) {
-  var t = orderTotals(o);
-  var cur = o.currency || 'EUR';
-  var isOpen = !!SECTION_OPEN[o.id + '_order'];
+  var t=totals(o), cur=o.currency||'EUR';
+  var isOpen=!!SEC[o.id+'_o'];
+  var dOpen=!!SEC[o.id+'_d'];
+  var pOpen=!!SEC[o.id+'_p'];
 
-  var statusChip = '';
-  if (t.od.length) {
-    statusChip = '<span style="font-family:DM Mono,monospace;font-size:10px;padding:2px 8px;border-radius:20px;background:#FEE2E2;color:#DC2626;font-weight:500;">' + t.od.length + ' Ueberfaellig</span>';
-  } else if (t.pct >= 100) {
-    statusChip = '<span style="font-family:DM Mono,monospace;font-size:10px;padding:2px 8px;border-radius:20px;background:#D1FAE5;color:#059669;font-weight:500;">Vollst. bezahlt</span>';
-  }
+  var sChip=t.od.length?chip('cr2',t.od.length+' Ueberfaellig'):t.pct>=100?chip('cg2','Vollst. bezahlt'):'';
+  var nxt=t.nxt?fa(t.nxt.amount,cur)+' am '+fd(t.nxt.dueDate):'Keine offen';
+  var bc=t.od.length?'#DC2626':'#059669';
 
-  var nextInfo = t.next ? (fmtAmt(t.next.amount, cur) + ' am ' + fmtDate(t.next.dueDate)) : 'Keine offen';
-  var barColor = t.od.length ? '#DC2626' : '#059669';
+  var hdr='<div'+da('toggleSec',[o.id+'_o'])+' style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:16px 18px 10px;">'+
+    '<div style="flex:1;">'+
+      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">'+
+        '<span style="font-family:DM Mono,monospace;font-size:11px;font-weight:500;color:#1D9E75;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.2);padding:2px 9px;border-radius:20px;">'+esc(o.ref)+'</span>'+
+        '<span style="font-size:15px;font-weight:700;color:#111827;">'+esc(o.supplier||o.ref)+'</span>'+
+        sChip+
+      '</div>'+
+      '<div style="display:flex;gap:14px;margin-top:5px;flex-wrap:wrap;font-size:12px;">'+
+        '<span style="color:#6B7280;">Gesamt: <strong style="color:#111827">'+fa(t.tot,cur)+'</strong></span>'+
+        '<span style="color:#059669;">Bezahlt: '+fa(t.paid,cur)+' ('+t.pct.toFixed(0)+'%)</span>'+
+        '<span style="color:#D97706;">'+nxt+'</span>'+
+      '</div>'+
+    '</div>'+
+    '<div style="display:flex;gap:5px;" data-stop="1">'+
+      '<button class="btn bsm"'+da('editOrder',[o.id])+'>Bearbeiten</button>'+
+      '<button class="btn bsm bd"'+da('delOrder',[o.id])+'>&#x1F5D1;</button>'+
+    '</div>'+
+    '<div style="font-size:10px;color:#9CA3AF;padding:4px;'+(isOpen?'transform:rotate(180deg);':'')+'">&#x25BC;</div>'+
+  '</div>'+
+  '<div'+da('toggleSec',[o.id+'_o'])+' style="padding:0 18px 10px;cursor:pointer;">'+
+    '<div style="height:5px;background:#EAEAE8;border-radius:20px;overflow:hidden;"><div style="height:100%;border-radius:20px;background:'+bc+';width:'+t.pct.toFixed(1)+'%;"></div></div>'+
+  '</div>';
 
-  var headerHtml =
-    '<div style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:16px 18px 10px;" onclick="toggleSection('' + o.id + '_order')">' +
-      '<div style="flex:1;">' +
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
-          '<span style="font-family:DM Mono,monospace;font-size:11px;font-weight:500;color:#1D9E75;background:rgba(29,158,117,.08);border:1px solid rgba(29,158,117,.2);padding:2px 9px;border-radius:20px;">' + esc(o.ref) + '</span>' +
-          '<span style="font-size:15px;font-weight:700;color:#111827;">' + esc(o.supplier || o.ref) + '</span>' +
-          statusChip +
-        '</div>' +
-        '<div style="display:flex;gap:16px;margin-top:5px;flex-wrap:wrap;">' +
-          '<span style="font-size:12px;color:#6B7280;">Gesamt: <strong style="color:#111827">' + fmtAmt(t.total, cur) + '</strong></span>' +
-          '<span style="font-size:12px;color:#059669;">Bezahlt: ' + fmtAmt(t.paid, cur) + ' (' + t.pct.toFixed(0) + '%)</span>' +
-          '<span style="font-size:12px;color:#D97706;">Naechste: ' + nextInfo + '</span>' +
-        '</div>' +
-      '</div>' +
-      '<div style="display:flex;gap:5px;" onclick="event.stopPropagation()">' +
-        '<button class="btn bsm" onclick="openEditOrder('' + o.id + '')">Bearbeiten</button>' +
-        '<button class="btn bsm bd" onclick="delOrder('' + o.id + '')">&#x1F5D1;</button>' +
-      '</div>' +
-      '<div style="font-size:10px;color:#9CA3AF;padding:4px;transition:transform .2s;' + (isOpen ? 'transform:rotate(180deg)' : '') + '">&#x25BC;</div>' +
-    '</div>' +
-    '<div style="padding:0 18px 12px;cursor:pointer;" onclick="toggleSection('' + o.id + '_order')">' +
-      '<div style="height:5px;background:#EAEAE8;border-radius:20px;overflow:hidden;">' +
-        '<div style="height:100%;border-radius:20px;background:' + barColor + ';width:' + t.pct.toFixed(1) + '%;transition:width .4s;"></div>' +
-      '</div>' +
-    '</div>';
-
-  if (!isOpen) {
-    return '<div class="oc">' + headerHtml + '</div>';
-  }
-
-  // Expanded content
-  var delOpen = !!SECTION_OPEN[o.id + '_del'];
-  var payOpen = !!SECTION_OPEN[o.id + '_pay'];
-
-  // Summary row
-  var nxtTxt = t.next ? fmtAmt(t.next.amount, cur) : '-';
-  var nxtSub = t.next ? (esc(t.next.ref) + ' &middot; ' + fmtDate(t.next.dueDate)) : 'Keine offen';
-  var sumHtml =
-    '<div class="sum-row">' +
-      sc('Gesamt', fmtAmt(t.total, cur), (o.totalUnits || 0).toLocaleString('de-CH') + ' Stk', '') +
-      sc('Bezahlt', fmtAmt(t.paid, cur), t.pct.toFixed(1) + '%', 'cg') +
-      sc('Offen', fmtAmt(t.open, cur), (100 - t.pct).toFixed(1) + '%', 'cr') +
-      sc('Naechste Zahlung', nxtTxt, nxtSub, 'ca') +
-    '</div>';
+  if (!isOpen) return '<div class="oc">'+hdr+'</div>';
 
   // Alerts
-  var alertsHtml = '';
-  t.od.forEach(function(x) {
-    alertsHtml += '<div class="alrt">(!) <strong>' + esc(x.p.ref) + '</strong> &ndash; ' + esc(x.dName) + ': ' + fmtAmt(x.p.amount, cur) + ' faellig am ' + fmtDate(x.p.dueDate) + (x.p.notes ? ' (' + esc(x.p.notes) + ')' : '') + '</div>';
+  var alrts='';
+  t.od.forEach(function(x){
+    alrts+='<div class="alrt">(!) <strong>'+esc(x.p.ref)+'</strong> &ndash; '+esc(x.dn)+': '+fa(x.p.amount,cur)+' faellig am '+fd(x.p.dueDate)+(x.p.notes?' ('+esc(x.p.notes)+')':'')+'</div>';
   });
 
   // Deliveries
-  var delHtml = '';
-  o.deliveries.forEach(function(d) { delHtml += buildDelivery(o, d); });
+  var dels='';
+  o.deliveries.forEach(function(d){ dels+=buildDel(o,d); });
 
-  // All payments flat
-  var allPays = [];
-  o.deliveries.forEach(function(d) {
-    d.payments.forEach(function(p) {
-      allPays.push({p:p, dName:d.name, did:d.id, oid:o.id});
-    });
-  });
-  allPays.sort(function(a, b) { return (a.p.dueDate || '').localeCompare(b.p.dueDate || ''); });
-
-  var payRows = '';
-  allPays.forEach(function(x) {
-    var p = x.p;
-    var s = getStatus(p);
-    var ac = s === 'overdue' ? 'cr' : s === 'paid' ? 'cg' : '';
-    var partH = (parseFloat(p.amount_paid) > 0 && !p.paidDate) ? '<div style="font-size:10px;color:#6B7280;">davon: ' + fmtAmt(p.amount_paid, cur) + '</div>' : '';
-    var payBtn = p.paidDate
-      ? '<button class="ib" onclick="unpay('' + x.oid + '','' + x.did + '','' + p.id + '')">&#x21A9;</button>'
-      : '<button class="ib ibp" onclick="qpay('' + x.oid + '','' + x.did + '','' + p.id + '')">&#x2713;</button>';
-    payRows +=
-      '<tr>' +
-        '<td style="font-family:DM Mono,monospace;font-size:10px;color:#9CA3AF;white-space:nowrap;">' + esc(p.ref || '-') + '</td>' +
-        '<td><div style="font-weight:500;color:#111827;">' + esc(p.desc) + '</div>' + (p.notes ? '<div style="font-size:11px;color:#6B7280;">' + esc(p.notes) + '</div>' : '') + '<div style="font-size:10px;color:#9CA3AF;">' + esc(x.dName) + '</div></td>' +
-        '<td><div style="color:#6B7280;">' + fmtDate(p.dueDate) + '</div>' + (p.paidDate ? '<div style="font-size:10px;color:#059669;">&#x2713; ' + fmtDate(p.paidDate) + '</div>' : '') + '</td>' +
-        '<td><span class="badge ' + STATUS_BADGE[s] + '">' + STATUS_LABEL[s] + '</span></td>' +
-        '<td style="text-align:right;"><div style="font-family:DM Mono,monospace;font-size:12px;font-weight:600;" class="' + ac + '">' + fmtAmt(p.amount, cur) + '</div>' + partH + '</td>' +
-        '<td><div style="display:flex;gap:3px;">' + payBtn + '<button class="ib" onclick="openEditPay('' + x.oid + '','' + x.did + '','' + p.id + '')">&#x270F;</button></div></td>' +
-      '</tr>';
+  // Payments flat
+  var apays=[];
+  o.deliveries.forEach(function(d){ d.payments.forEach(function(p){ apays.push({p:p,dn:d.name,did:d.id,oid:o.id}); }); });
+  apays.sort(function(a,b){return (a.p.dueDate||'').localeCompare(b.p.dueDate||'');});
+  var prows='';
+  apays.forEach(function(x){
+    var p=x.p,s=gs(p),ac=s==='overdue'?'cr':s==='paid'?'cg':'';
+    var ph=parseFloat(p.amount_paid)>0&&!p.paidDate?'<div style="font-size:10px;color:#6B7280;">davon: '+fa(p.amount_paid,cur)+'</div>':'';
+    var pb=p.paidDate?'<button class="ib"'+da('unpay',[x.oid,x.did,p.id])+'>&#x21A9;</button>':'<button class="ib ibp"'+da('qpay',[x.oid,x.did,p.id])+'>&#x2713;</button>';
+    prows+='<tr>'+
+      '<td style="font-family:DM Mono,monospace;font-size:10px;color:#9CA3AF;white-space:nowrap;">'+esc(p.ref||'-')+'</td>'+
+      '<td><div style="font-weight:500;color:#111827;">'+esc(p.desc)+'</div>'+(p.notes?'<div style="font-size:11px;color:#6B7280;">'+esc(p.notes)+'</div>':'')+'<div style="font-size:10px;color:#9CA3AF;">'+esc(x.dn)+'</div></td>'+
+      '<td><div style="color:#6B7280;">'+fd(p.dueDate)+'</div>'+(p.paidDate?'<div style="font-size:10px;color:#059669;">'+fd(p.paidDate)+'</div>':'')+'</td>'+
+      '<td><span class="badge '+SB[s]+'">'+SL[s]+'</span></td>'+
+      '<td style="text-align:right;"><div class="'+ac+'" style="font-family:DM Mono,monospace;font-size:12px;font-weight:600;">'+fa(p.amount,cur)+'</div>'+ph+'</td>'+
+      '<td><div style="display:flex;gap:3px;">'+pb+'<button class="ib"'+da('editPay',[x.oid,x.did,p.id])+'>&#x270F;</button></div></td>'+
+    '</tr>';
   });
 
-  var payTableHtml = payOpen
-    ? '<div style="overflow-x:auto;"><table class="pt"><thead><tr><th>Ref.</th><th>Beschreibung</th><th>Faellig</th><th>Status</th><th style="text-align:right">Betrag</th><th></th></tr></thead><tbody>' + payRows + '</tbody></table></div>'
-    : '';
-
-  return '<div class="oc">' +
-    headerHtml +
-    '<div style="border-top:1px solid #E8E8E6;">' +
-      sumHtml +
-      alertsHtml +
-      '<div class="sw">' +
-        '<div class="shdr" onclick="toggleSection('' + o.id + '_del')">' +
-          '<div class="slbl">Teillieferungen (' + o.deliveries.length + ')</div>' +
-          '<div style="display:flex;gap:6px;align-items:center;">' +
-            '<button class="btn bsm bp" onclick="event.stopPropagation();openAddDel('' + o.id + '')">+ Teillieferung</button>' +
-            '<span style="font-size:9px;color:#9CA3AF;' + (delOpen ? 'transform:rotate(180deg);' : '') + 'display:inline-block;transition:transform .2s;">&#x25BC;</span>' +
-          '</div>' +
-        '</div>' +
-        (delOpen ? '<div>' + delHtml + '</div>' : '') +
-      '</div>' +
-      '<div class="sw" style="border-top:1px solid #E8E8E6;">' +
-        '<div class="shdr" onclick="toggleSection('' + o.id + '_pay')">' +
-          '<div class="slbl">Zahlungsplan (' + allPays.length + ' Eintraege)</div>' +
-          '<span style="font-size:9px;color:#9CA3AF;' + (payOpen ? 'transform:rotate(180deg);' : '') + 'display:inline-block;transition:transform .2s;">&#x25BC;</span>' +
-        '</div>' +
-        payTableHtml +
-      '</div>' +
-    '</div>' +
+  return '<div class="oc">'+hdr+
+    '<div style="border-top:1px solid #E8E8E6;">'+
+      '<div class="sum-row">'+
+        sc('Gesamt',fa(t.tot,cur),(o.totalUnits||0).toLocaleString('de-CH')+' Stk','') +
+        sc('Bezahlt',fa(t.paid,cur),t.pct.toFixed(1)+'%','cg') +
+        sc('Offen',fa(t.open,cur),(100-t.pct).toFixed(1)+'%','cr') +
+        sc('Naechste',t.nxt?fa(t.nxt.amount,cur):'-',t.nxt?fd(t.nxt.dueDate)+' &middot; '+esc(t.nxt.ref||''):'','ca') +
+      '</div>'+
+      alrts+
+      '<div class="sw">'+
+        '<div class="shdr"'+da('toggleSec',[o.id+'_d'])+'>'+
+          '<div class="slbl">Teillieferungen ('+o.deliveries.length+')</div>'+
+          '<div style="display:flex;gap:6px;" data-stop="1">'+
+            '<button class="btn bsm bp"'+da('addDel',[o.id])+'>+ Teillieferung</button>'+
+          '</div>'+
+        '</div>'+
+        (dOpen?'<div>'+dels+'</div>':'')+
+      '</div>'+
+      '<div class="sw" style="border-top:1px solid #E8E8E6;">'+
+        '<div class="shdr"'+da('toggleSec',[o.id+'_p'])+'>'+
+          '<div class="slbl">Zahlungsplan ('+apays.length+' Eintraege)</div>'+
+        '</div>'+
+        (pOpen&&prows?'<div style="overflow-x:auto;"><table class="pt"><thead><tr><th>Ref.</th><th>Beschreibung</th><th>Faellig</th><th>Status</th><th style="text-align:right">Betrag</th><th></th></tr></thead><tbody>'+prows+'</tbody></table></div>':'')+
+      '</div>'+
+    '</div>'+
   '</div>';
 }
 
-function sc(lbl, val, sub, cls) {
-  return '<div class="scard"><div class="slbl2">' + lbl + '</div><div class="sval ' + cls + '">' + val + '</div><div class="ssub">' + sub + '</div></div>';
-}
+function buildDel(o, d) {
+  var pays=d.payments||[],tot=0;
+  pays.forEach(function(p){tot+=parseFloat(p.amount)||0;});
+  var od=pays.some(function(p){return gs(p)==='overdue';});
+  var ap=pays.length>0&&pays.every(function(p){return!!p.paidDate;});
+  var isO=!!OPEN[d.id];
+  var stk=parseInt(d.stk_ordered)||0,rec=parseInt(d.stk_received)||0;
+  var pct=stk>0?Math.min(rec/stk*100,100):0;
+  var bc=od?'#DC2626':ap?'#059669':'#D97706';
+  var cur=o.currency||'EUR';
+  var nc=parseFloat(d.netPrice)||0,sc2=parseFloat(d.shippingCost)||0;
 
-function buildDelivery(o, d) {
-  var pays = d.payments || [];
-  var tot = 0; pays.forEach(function(p) { tot += parseFloat(p.amount) || 0; });
-  var hasOD = pays.some(function(p) { return getStatus(p) === 'overdue'; });
-  var allPaid = pays.length > 0 && pays.every(function(p) { return !!p.paidDate; });
-  var isOpen = !!OPEN[d.id];
-  var stk = parseInt(d.stk_ordered) || 0;
-  var rec = parseInt(d.stk_received) || 0;
-  var pct = stk > 0 ? Math.min(rec / stk * 100, 100) : 0;
-  var barC = hasOD ? '#DC2626' : allPaid ? '#059669' : '#D97706';
-  var cur = o.currency || 'EUR';
-
-  var chips = '';
-  if (allPaid && d.id !== 'd0') chips += '<span class="chip cg2">Bezahlt</span>';
-  else if (hasOD) chips += '<span class="chip cr2">Ueberfaellig</span>';
-  else if (pays.some(function(p) { return getStatus(p) === 'soon'; })) chips += '<span class="chip ca2">Bald faellig</span>';
-  if (rec > 0 && stk > 0) chips += '<span class="chip cb2">' + rec.toLocaleString('de-CH') + '/' + stk.toLocaleString('de-CH') + '</span>';
+  var chips=ap&&d.id!=='d0'?chip('cg2','Bezahlt'):od?chip('cr2','Ueberfaellig'):pays.some(function(p){return gs(p)==='soon';})?chip('ca2','Bald faellig'):'';
+  if(rec>0&&stk>0) chips+=chip('cb2',rec.toLocaleString('de-CH')+'/'+stk.toLocaleString('de-CH'));
 
   // Box progress
-  var boxH = '';
-  if (stk > 0) {
-    boxH = '<div class="boxrow">' +
-      '<div style="flex:1;">' +
-        '<div style="font-size:12px;font-weight:500;margin-bottom:3px;">Wareneingang</div>' +
-        '<div style="height:4px;background:#EAEAE8;border-radius:20px;overflow:hidden;margin-bottom:2px;"><div style="height:100%;background:#1D9E75;width:' + pct.toFixed(0) + '%;border-radius:20px;"></div></div>' +
-        '<div style="font-size:11px;color:#6B7280;">' + rec.toLocaleString('de-CH') + ' von ' + stk.toLocaleString('de-CH') + ' Stk (' + pct.toFixed(0) + '%)</div>' +
-      '</div>' +
-      '<button class="btn bsm ba" onclick="openBoxes('' + o.id + '','' + d.id + '')">Eingang buchen</button>' +
-    '</div>';
-  }
+  var boxH=stk>0?'<div class="boxrow">'+
+    '<div style="flex:1;"><div style="font-size:12px;font-weight:500;margin-bottom:3px;">Wareneingang</div>'+
+    '<div style="height:4px;background:#EAEAE8;border-radius:20px;overflow:hidden;margin-bottom:2px;"><div style="height:100%;background:#1D9E75;width:'+pct.toFixed(0)+'%;border-radius:20px;"></div></div>'+
+    '<div style="font-size:11px;color:#6B7280;">'+rec.toLocaleString('de-CH')+' von '+stk.toLocaleString('de-CH')+' Stk ('+pct.toFixed(0)+'%)</div></div>'+
+    '<button class="btn bsm ba"'+da('boxes',[o.id,d.id])+'>Eingang buchen</button>'+
+  '</div>':'';
 
   // Costs
-  var costsH = '';
-  var nc = parseFloat(d.netPrice) || 0;
-  var sc2 = parseFloat(d.shippingCost) || 0;
-  if (nc || sc2) {
-    costsH = '<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;">';
-    if (nc) costsH += '<div style="background:#fff;border:1px solid #E8E8E6;border-radius:7px;padding:4px 10px;font-size:12px;"><span style="color:#6B7280;">Netto </span><span style="font-family:DM Mono,monospace;font-weight:600;">' + fmtAmt(nc, cur) + '</span></div>';
-    if (sc2) costsH += '<div style="background:#fff;border:1px solid #E8E8E6;border-radius:7px;padding:4px 10px;font-size:12px;"><span style="color:#6B7280;">Versand </span><span style="font-family:DM Mono,monospace;font-weight:600;">' + fmtAmt(sc2, cur) + '</span></div>';
-    if (nc && sc2) costsH += '<div style="background:#fff;border:1px solid #E8E8E6;border-radius:7px;padding:4px 10px;font-size:12px;"><span style="color:#6B7280;">Total </span><span style="font-family:DM Mono,monospace;font-weight:600;">' + fmtAmt(nc + sc2, cur) + '</span></div>';
-    costsH += '</div>';
+  var costsH='';
+  if(nc||sc2){
+    costsH='<div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px;">';
+    if(nc) costsH+='<div style="background:#fff;border:1px solid #E8E8E6;border-radius:7px;padding:4px 10px;font-size:12px;"><span style="color:#6B7280;">Netto </span><span style="font-family:DM Mono,monospace;font-weight:600;">'+fa(nc,cur)+'</span></div>';
+    if(sc2) costsH+='<div style="background:#fff;border:1px solid #E8E8E6;border-radius:7px;padding:4px 10px;font-size:12px;"><span style="color:#6B7280;">Versand </span><span style="font-family:DM Mono,monospace;font-weight:600;">'+fa(sc2,cur)+'</span></div>';
+    if(nc&&sc2) costsH+='<div style="background:#fff;border:1px solid #E8E8E6;border-radius:7px;padding:4px 10px;font-size:12px;"><span style="color:#6B7280;">Total </span><span style="font-family:DM Mono,monospace;font-weight:600;">'+fa(nc+sc2,cur)+'</span></div>';
+    costsH+='</div>';
   }
 
   // Flavors
-  var flavH = '';
-  if (d.flavors && d.flavors.length) {
-    flavH = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">';
-    d.flavors.forEach(function(f) {
-      flavH += '<div style="background:#fff;border:1px solid #E8E8E6;border-radius:6px;padding:3px 9px;font-size:12px;"><span style="color:#6B7280;">' + esc(f.name) + '</span> <span style="font-family:DM Mono,monospace;font-weight:600;">' + f.qty + '</span></div>';
-    });
-    flavH += '<button class="btn bsm" onclick="editFlavs('' + o.id + '','' + d.id + '')" style="font-size:10px;padding:2px 7px;">Edit</button></div>';
+  var flavH='';
+  if(d.flavors&&d.flavors.length){
+    flavH='<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">';
+    d.flavors.forEach(function(f){ flavH+='<div style="background:#fff;border:1px solid #E8E8E6;border-radius:6px;padding:3px 9px;font-size:12px;"><span style="color:#6B7280;">'+esc(f.name)+'</span> <span style="font-family:DM Mono,monospace;font-weight:600;">'+f.qty+'</span></div>'; });
+    flavH+='<button class="btn bsm"'+da('editFlavs',[o.id,d.id])+' style="font-size:10px;padding:2px 7px;">Edit</button></div>';
   }
 
   // Payment rows
-  var pRows = '';
-  pays.forEach(function(p) {
-    var s = getStatus(p);
-    var ac = s === 'overdue' ? 'cr' : s === 'paid' ? 'cg' : '';
-    var ph = (parseFloat(p.amount_paid) > 0 && !p.paidDate) ? '<div style="font-size:10px;color:#6B7280;">davon: ' + fmtAmt(p.amount_paid, cur) + '</div>' : '';
-    var pb = p.paidDate
-      ? '<button class="ib" onclick="unpay('' + o.id + '','' + d.id + '','' + p.id + '')">&#x21A9;</button>'
-      : '<button class="ib ibp" onclick="qpay('' + o.id + '','' + d.id + '','' + p.id + '')">&#x2713;</button>';
-    pRows +=
-      '<tr>' +
-        '<td style="font-family:DM Mono,monospace;font-size:10px;color:#9CA3AF;white-space:nowrap;">' + esc(p.ref || '-') + '</td>' +
-        '<td><div style="font-weight:500;color:#111827;">' + esc(p.desc) + '</div>' + (p.notes ? '<div style="font-size:11px;color:#6B7280;">' + esc(p.notes) + '</div>' : '') + '</td>' +
-        '<td><div style="color:#6B7280;">' + fmtDate(p.dueDate) + '</div>' + (p.paidDate ? '<div style="font-size:10px;color:#059669;">&#x2713; ' + fmtDate(p.paidDate) + '</div>' : '') + '</td>' +
-        '<td><span class="badge ' + STATUS_BADGE[s] + '">' + STATUS_LABEL[s] + '</span></td>' +
-        '<td style="text-align:right;"><div style="font-family:DM Mono,monospace;font-size:12px;font-weight:600;" class="' + ac + '">' + fmtAmt(p.amount, cur) + '</div>' + ph + '</td>' +
-        '<td><div style="display:flex;gap:3px;">' + pb + '<button class="ib" onclick="openEditPay('' + o.id + '','' + d.id + '','' + p.id + '')">&#x270F;</button></div></td>' +
-      '</tr>';
+  var prows='';
+  pays.forEach(function(p){
+    var s=gs(p),ac=s==='overdue'?'cr':s==='paid'?'cg':'';
+    var ph=parseFloat(p.amount_paid)>0&&!p.paidDate?'<div style="font-size:10px;color:#6B7280;">davon: '+fa(p.amount_paid,cur)+'</div>':'';
+    var pb=p.paidDate?'<button class="ib"'+da('unpay',[o.id,d.id,p.id])+'>&#x21A9;</button>':'<button class="ib ibp"'+da('qpay',[o.id,d.id,p.id])+'>&#x2713;</button>';
+    prows+='<tr><td style="font-family:DM Mono,monospace;font-size:10px;color:#9CA3AF;white-space:nowrap;">'+esc(p.ref||'-')+'</td>'+
+      '<td><div style="font-weight:500;color:#111827;">'+esc(p.desc)+'</div>'+(p.notes?'<div style="font-size:11px;color:#6B7280;">'+esc(p.notes)+'</div>':'')+'</td>'+
+      '<td><div style="color:#6B7280;">'+fd(p.dueDate)+'</div>'+(p.paidDate?'<div style="font-size:10px;color:#059669;">'+fd(p.paidDate)+'</div>':'')+'</td>'+
+      '<td><span class="badge '+SB[s]+'">'+SL[s]+'</span></td>'+
+      '<td style="text-align:right;"><div class="'+ac+'" style="font-family:DM Mono,monospace;font-size:12px;font-weight:600;">'+fa(p.amount,cur)+'</div>'+ph+'</td>'+
+      '<td><div style="display:flex;gap:3px;">'+pb+'<button class="ib"'+da('editPay',[o.id,d.id,p.id])+'>&#x270F;</button></div></td></tr>';
   });
 
-  var dcClass = 'dc' + (hasOD ? ' dcw' : '') + (allPaid ? ' dco' : '');
-
-  return '<div class="' + dcClass + '">' +
-    '<div style="display:flex;align-items:center;cursor:pointer;" onclick="toggleDel('' + d.id + '')">' +
-      '<div style="width:3px;align-self:stretch;background:' + barC + ';border-radius:3px 0 0 0;flex-shrink:0;"></div>' +
-      '<div style="flex:1;display:flex;align-items:center;gap:10px;padding:11px 13px;flex-wrap:wrap;">' +
-        '<div style="flex:1;">' +
-          '<div style="font-size:13px;font-weight:600;color:#111827;">' + esc(d.name) + '</div>' +
-          '<div style="font-size:11px;color:#6B7280;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;">' +
-            (d.deliveryDate ? '<span>' + fmtDate(d.deliveryDate) + '</span>' : '') +
-            (stk ? '<span>' + stk.toLocaleString('de-CH') + ' Stk</span>' : '') +
-            (nc ? '<span>Netto ' + fmtAmt(nc, cur) + '</span>' : '') +
-          '</div>' +
-        '</div>' +
-        '<div>' + chips + '</div>' +
-        '<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:600;color:#111827;">' + fmtAmt(tot, cur) + '</div>' +
-      '</div>' +
-      '<div style="display:flex;gap:3px;padding-right:10px;" onclick="event.stopPropagation()">' +
-        '<button class="ib" onclick="openEditDel('' + o.id + '','' + d.id + '')">&#x270F;</button>' +
-        '<button class="ib" onclick="splitDel('' + o.id + '','' + d.id + '')" title="Aufteilen">&#x2702;</button>' +
-        '<button class="ib" onclick="openAddPay('' + o.id + '','' + d.id + '')" title="Zahlung">+</button>' +
-      '</div>' +
-      '<div style="font-size:9px;color:#9CA3AF;padding:4px 10px 4px 2px;transition:transform .2s;' + (isOpen ? 'transform:rotate(180deg)' : '') + '">&#x25BC;</div>' +
-    '</div>' +
-    '<div style="border-top:1px solid #E8E8E6;padding:12px 13px 13px;background:#F7F7F5;display:' + (isOpen ? 'block' : 'none') + ';">' +
-      boxH + costsH + flavH +
-      (pRows ? '<div style="overflow-x:auto;margin-top:4px;"><table class="pt"><thead><tr><th>Ref.</th><th>Beschreibung</th><th>Faellig</th><th>Status</th><th style="text-align:right">Betrag</th><th></th></tr></thead><tbody>' + pRows + '</tbody></table></div>' : '') +
-      '<div style="display:flex;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid #E8E8E6;flex-wrap:wrap;">' +
-        '<button class="btn bsm" onclick="openAddPay('' + o.id + '','' + d.id + '')">+ Zahlung</button>' +
-        '<button class="btn bsm" onclick="openAddFlav('' + o.id + '','' + d.id + '')">+ Geschmack</button>' +
-        '<button class="btn bsm bd" style="margin-left:auto;" onclick="delDel('' + o.id + '','' + d.id + '')">Loeschen</button>' +
-      '</div>' +
-    '</div>' +
+  var dcCls='dc'+(od?' dcw':'')+(ap?' dco':'');
+  return '<div class="'+dcCls+'">'+
+    '<div style="display:flex;align-items:center;cursor:pointer;"'+da('toggleDel',[d.id])+'>'+
+      '<div style="width:3px;align-self:stretch;background:'+bc+';border-radius:3px 0 0 0;flex-shrink:0;"></div>'+
+      '<div style="flex:1;display:flex;align-items:center;gap:10px;padding:11px 13px;flex-wrap:wrap;">'+
+        '<div style="flex:1;">'+
+          '<div style="font-size:13px;font-weight:600;color:#111827;">'+esc(d.name)+'</div>'+
+          '<div style="font-size:11px;color:#6B7280;margin-top:2px;display:flex;gap:10px;flex-wrap:wrap;">'+
+            (d.deliveryDate?'<span>'+fd(d.deliveryDate)+'</span>':'')+
+            (stk?'<span>'+stk.toLocaleString('de-CH')+' Stk</span>':'')+
+            (nc?'<span>Netto '+fa(nc,cur)+'</span>':'')+
+          '</div>'+
+        '</div>'+
+        '<div>'+chips+'</div>'+
+        '<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:600;color:#111827;">'+fa(tot,cur)+'</div>'+
+      '</div>'+
+      '<div style="display:flex;gap:3px;padding-right:10px;" data-stop="1">'+
+        '<button class="ib"'+da('editDel',[o.id,d.id])+'>&#x270F;</button>'+
+        '<button class="ib"'+da('splitDel',[o.id,d.id])+' title="Aufteilen">&#x2702;</button>'+
+        '<button class="ib"'+da('addPay',[o.id,d.id])+'>+</button>'+
+      '</div>'+
+      '<div style="font-size:9px;color:#9CA3AF;padding:4px 10px 4px 2px;'+(isO?'transform:rotate(180deg);':'')+'">&#x25BC;</div>'+
+    '</div>'+
+    '<div style="border-top:1px solid #E8E8E6;padding:12px 13px 13px;background:#F7F7F5;display:'+(isO?'block':'none')+';">'+
+      boxH+costsH+flavH+
+      (prows?'<div style="overflow-x:auto;margin-top:4px;"><table class="pt"><thead><tr><th>Ref.</th><th>Beschreibung</th><th>Faellig</th><th>Status</th><th style="text-align:right">Betrag</th><th></th></tr></thead><tbody>'+prows+'</tbody></table></div>':'')+
+      '<div style="display:flex;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid #E8E8E6;flex-wrap:wrap;">'+
+        '<button class="btn bsm"'+da('addPay',[o.id,d.id])+'>+ Zahlung</button>'+
+        '<button class="btn bsm"'+da('addFlav',[o.id,d.id])+'>+ Geschmack</button>'+
+        '<button class="btn bsm bd" style="margin-left:auto;"'+da('delDel',[o.id,d.id])+'>Loeschen</button>'+
+      '</div>'+
+    '</div>'+
   '</div>';
 }
 
-// ---- ACTIONS ----
-function toggleSection(key) { SECTION_OPEN[key] = !SECTION_OPEN[key]; render(); }
-function toggleDel(id) { OPEN[id] = !OPEN[id]; render(); }
+// Modal
+function gv(id){var el=document.getElementById(id);return el?el.value.trim():'';}
+function openM(title,body,ctx,hasDel){CTX=ctx;document.getElementById('mh').textContent=title;document.getElementById('mb').innerHTML=body;document.getElementById('mdel').style.display=hasDel?'block':'none';document.getElementById('modal').style.display='flex';}
+function closeModal(){document.getElementById('modal').style.display='none';CTX=null;}
 
-function qpay(oid, did, pid) {
-  var d = findDelivery(oid, did);
-  var p = d && findPayment(d, pid);
-  if (!p) return;
-  var dt = prompt('Bezahlt am (JJJJ-MM-TT):', todayStr());
-  if (dt === null) return;
-  p.paidDate = dt || todayStr();
-  p.amount_paid = p.amount;
-  render();
+function pf(p){var x=p||{};return fRow('Referenz','mr',x.ref||'')+fRow('Betrag','ma',x.amount||'','number')+fRow('Beschreibung','md',x.desc||'')+fRow('Faellig am','mdu',x.dueDate||'','date')+fRow('Bezahlt am','mp',x.paidDate||'','date')+fRow('Teilzahlung','map',x.amount_paid||0,'number')+fRow('Notiz','mn',x.notes||'');}
+function df(d){var x=d||{};return fRow('Name','dn',x.name||'')+fRow('Lieferdatum','dd',x.deliveryDate||'','date')+fRow('Stk bestellt','ds',x.stk_ordered||0,'number')+fRow('Stk angekommen','dr',x.stk_received||0,'number')+fRow('Netto Preis','dnet',x.netPrice||0,'number')+fRow('Versandkosten','dship',x.shippingCost||0,'number');}
+function fRow(lbl,id,val,type){return '<label class="ml">'+lbl+'</label><input class="mi" id="'+id+'" type="'+(type||'text')+'" value="'+esc(String(val))+'">';}
+
+function openAddOrder(){openM('Neue Bestellung',fRow('Referenz','oref','PF0038')+fRow('Lieferant','osup','NRSH GmbH')+fRow('Waehrung','ocur','EUR'),{t:'add-order'});}
+function openEditOrder(oid){var o=fO(oid);openM('Bestellung bearbeiten',fRow('Referenz','oref',o.ref||'')+fRow('Lieferant','osup',o.supplier||'')+fRow('Waehrung','ocur',o.currency||'EUR'),{t:'edit-order',oid:oid},true);}
+function openAddDel(oid){openM('Neue Teillieferung',df(),{t:'add-del',oid:oid});}
+function openEditDel(oid,did){var d=fD(oid,did);openM('Teillieferung bearbeiten',df(d),{t:'edit-del',oid:oid,did:did},true);}
+function openBoxes(oid,did){var d=fD(oid,did);openM('Wareneingang buchen','<div style="background:#F2F2F0;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;color:#6B7280;">Bestellt: <strong>'+(d.stk_ordered||0).toLocaleString('de-CH')+' Stk</strong></div>'+fRow('Angekommen total','dr',d.stk_received||0,'number'),{t:'boxes',oid:oid,did:did});}
+function openAddPay(oid,did){openM('Zahlung hinzufuegen',pf(),{t:'add-pay',oid:oid,did:did});}
+function openEditPay(oid,did,pid){var d=fD(oid,did),p=d&&fP(d,pid);openM('Zahlung bearbeiten',pf(p),{t:'edit-pay',oid:oid,did:did,pid:pid},true);}
+function openAddFlav(oid,did){openM('Geschmack hinzufuegen',fRow('Name','fn','')+fRow('Stk','fq',0,'number'),{t:'add-flav',oid:oid,did:did});}
+function openEditFlavs(oid,did){
+  var d=fD(oid,did),rows='';
+  d.flavors.forEach(function(f,i){rows+=fRow(f.name,'ffn'+i,f.name)+fRow('Stk','ffq'+i,f.qty,'number');});
+  openM('Geschmacksverteilung',rows,{t:'edit-flavs',oid:oid,did:did});
 }
 
-function unpay(oid, did, pid) {
-  if (!confirm('Zahlung rueckgaengig machen?')) return;
-  var d = findDelivery(oid, did);
-  var p = d && findPayment(d, pid);
-  if (p) { p.paidDate = ''; p.amount_paid = 0; render(); }
+function modalSave(){
+  if(!CTX)return;var t=CTX.t;
+  if(t==='add-order'){var no={id:uid(),ref:gv('oref'),supplier:gv('osup'),currency:gv('ocur')||'EUR',deliveries:[]};ST.orders.push(no);SEC[no.id+'_o']=false;SEC[no.id+'_d']=true;SEC[no.id+'_p']=true;}
+  else if(t==='edit-order'){var o=fO(CTX.oid);if(o){o.ref=gv('oref');o.supplier=gv('osup');o.currency=gv('ocur')||'EUR';}}
+  else if(t==='add-del'){var o=fO(CTX.oid);if(o){var nd={id:uid(),name:gv('dn')||'Neue Teillieferung',deliveryDate:gv('dd'),stk_ordered:parseInt(gv('ds'))||0,stk_received:parseInt(gv('dr'))||0,netPrice:parseFloat(gv('dnet'))||0,shippingCost:parseFloat(gv('dship'))||0,flavors:[],payments:[]};o.deliveries.push(nd);}}
+  else if(t==='edit-del'){var d=fD(CTX.oid,CTX.did);if(d){d.name=gv('dn')||d.name;d.deliveryDate=gv('dd');d.stk_ordered=parseInt(gv('ds'))||0;d.stk_received=parseInt(gv('dr'))||0;d.netPrice=parseFloat(gv('dnet'))||0;d.shippingCost=parseFloat(gv('dship'))||0;}}
+  else if(t==='boxes'){var d=fD(CTX.oid,CTX.did);if(d)d.stk_received=parseInt(gv('dr'))||0;}
+  else if(t==='add-pay'){var d=fD(CTX.oid,CTX.did);if(d)d.payments.push({id:uid(),ref:gv('mr'),desc:gv('md'),amount:parseFloat(gv('ma'))||0,amount_paid:parseFloat(gv('map'))||0,dueDate:gv('mdu'),paidDate:gv('mp'),notes:gv('mn')});}
+  else if(t==='edit-pay'){var d=fD(CTX.oid,CTX.did),p=d&&fP(d,CTX.pid);if(p){p.ref=gv('mr');p.desc=gv('md');p.amount=parseFloat(gv('ma'))||0;p.amount_paid=parseFloat(gv('map'))||0;p.dueDate=gv('mdu');p.paidDate=gv('mp');p.notes=gv('mn');}}
+  else if(t==='add-flav'){var d=fD(CTX.oid,CTX.did);if(d){if(!d.flavors)d.flavors=[];d.flavors.push({name:gv('fn'),qty:parseInt(gv('fq'))||0});}}
+  else if(t==='edit-flavs'){var d=fD(CTX.oid,CTX.did);if(d)d.flavors=d.flavors.map(function(f,i){var ne=document.getElementById('ffn'+i),qe=document.getElementById('ffq'+i);return{name:ne?ne.value:f.name,qty:qe?parseInt(qe.value)||f.qty:f.qty};});}
+  closeModal();render();
 }
 
-function delDel(oid, did) {
-  if (!confirm('Teillieferung loeschen?')) return;
-  var o = findOrder(oid);
-  if (o) o.deliveries = o.deliveries.filter(function(x) { return x.id !== did; });
-  render();
+function modalDelete(){
+  if(!CTX)return;var t=CTX.t;
+  if(t==='edit-order'){if(!confirm('Bestellung loeschen?'))return;ST.orders=ST.orders.filter(function(x){return x.id!==CTX.oid;});}
+  else if(t==='edit-del'){if(!confirm('Teillieferung loeschen?'))return;var o=fO(CTX.oid);if(o)o.deliveries=o.deliveries.filter(function(x){return x.id!==CTX.did;});}
+  else if(t==='edit-pay'){if(!confirm('Zahlung loeschen?'))return;var d=fD(CTX.oid,CTX.did);if(d)d.payments=d.payments.filter(function(x){return x.id!==CTX.pid;});}
+  closeModal();render();
 }
 
-function delOrder(oid) {
-  if (!confirm('Bestellung loeschen?')) return;
-  ST.orders = ST.orders.filter(function(x) { return x.id !== oid; });
-  render();
-}
+function resetToDefaults(){if(!confirm('Alle Daten zuruecksetzen?'))return;localStorage.removeItem(SAVE_KEY);ST=JSON.parse(JSON.stringify(DEF));OPEN={};SEC={};loadState();render();}
 
-function splitDel(oid, did) {
-  var o = findOrder(oid);
-  var d = findDelivery(oid, did);
-  if (!o || !d) return;
-  var stk = parseInt(d.stk_ordered) || 0;
-  var s1 = prompt('Stk fuer Teil A:', Math.floor(stk / 2));
-  if (s1 === null) return;
-  var nd = JSON.parse(JSON.stringify(d));
-  nd.id = uid();
-  nd.name = d.name + ' B';
-  nd.stk_ordered = stk - (parseInt(s1) || stk);
-  nd.stk_received = 0;
-  nd.payments = [];
-  d.stk_ordered = parseInt(s1) || stk;
-  var idx = o.deliveries.indexOf(d);
-  o.deliveries.splice(idx + 1, 0, nd);
-  render();
-}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
 
-// ---- MODAL ----
-function openModal(title, body, ctx, hasDel) {
-  CTX = ctx;
-  document.getElementById('mh').textContent = title;
-  document.getElementById('mb').innerHTML = body;
-  document.getElementById('mdel').style.display = hasDel ? 'block' : 'none';
-  document.getElementById('modal').style.display = 'flex';
-}
-function closeModal() { document.getElementById('modal').style.display = 'none'; CTX = null; }
-function gv(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; }
+// Stop propagation for elements with data-stop
+document.addEventListener('click',function(e){
+  if(e.target.closest('[data-stop]')) e.stopPropagation();
+},true);
 
-function payForm(p) {
-  var x = p || {};
-  return '<label class="ml">Referenz</label><input class="mi g2a" id="mr" value="' + esc(x.ref || '') + '">' +
-    '<label class="ml">Betrag</label><input class="mi g2b" id="ma" type="number" step="0.01" value="' + (x.amount || '') + '">' +
-    '<label class="ml">Beschreibung</label><input class="mi" id="md" value="' + esc(x.desc || '') + '">' +
-    '<label class="ml">Faellig am</label><input class="mi g2a" id="mdu" type="date" value="' + (x.dueDate || '') + '">' +
-    '<label class="ml">Bezahlt am</label><input class="mi g2b" id="mp" type="date" value="' + (x.paidDate || '') + '">' +
-    '<label class="ml">Teilzahlung (bereits bezahlt)</label><input class="mi" id="map" type="number" step="0.01" value="' + (x.amount_paid || 0) + '">' +
-    '<label class="ml">Notiz</label><input class="mi" id="mn" value="' + esc(x.notes || '') + '">';
-}
-
-function delForm(d) {
-  var x = d || {};
-  return '<label class="ml">Name</label><input class="mi" id="dn" value="' + esc(x.name || '') + '">' +
-    '<label class="ml">Lieferdatum</label><input class="mi g2a" id="dd" type="date" value="' + (x.deliveryDate || '') + '">' +
-    '<label class="ml">Stk bestellt</label><input class="mi g2b" id="ds" type="number" value="' + (x.stk_ordered || 0) + '">' +
-    '<label class="ml">Stk angekommen</label><input class="mi g2a" id="dr" type="number" value="' + (x.stk_received || 0) + '">' +
-    '<label class="ml">Netto Preis</label><input class="mi g2b" id="dnet" type="number" step="0.01" value="' + (x.netPrice || 0) + '">' +
-    '<label class="ml">Versandkosten</label><input class="mi" id="dship" type="number" step="0.01" value="' + (x.shippingCost || 0) + '">';
-}
-
-function openAddOrder() {
-  openModal('Neue Bestellung',
-    '<label class="ml">Referenz (z.B. PF0038)</label><input class="mi" id="oref" placeholder="PF0038">' +
-    '<label class="ml">Lieferant</label><input class="mi" id="osup" placeholder="NRSH GmbH">' +
-    '<label class="ml">Waehrung</label><input class="mi" id="ocur" value="EUR">',
-    {t:'add-order'});
-}
-
-function openEditOrder(oid) {
-  var o = findOrder(oid);
-  openModal('Bestellung bearbeiten',
-    '<label class="ml">Referenz</label><input class="mi" id="oref" value="' + esc(o.ref || '') + '">' +
-    '<label class="ml">Lieferant</label><input class="mi" id="osup" value="' + esc(o.supplier || '') + '">' +
-    '<label class="ml">Waehrung</label><input class="mi" id="ocur" value="' + (o.currency || 'EUR') + '">',
-    {t:'edit-order', oid:oid}, true);
-}
-
-function openAddDel(oid) { openModal('Neue Teillieferung', delForm(), {t:'add-del', oid:oid}); }
-function openEditDel(oid, did) { var d = findDelivery(oid, did); openModal('Teillieferung bearbeiten', delForm(d), {t:'edit-del', oid:oid, did:did}, true); }
-
-function openBoxes(oid, did) {
-  var d = findDelivery(oid, did);
-  openModal('Wareneingang buchen',
-    '<div style="background:#F2F2F0;border-radius:8px;padding:9px 12px;margin-bottom:10px;font-size:13px;color:#6B7280;">Bestellt: <strong>' + (d.stk_ordered || 0).toLocaleString('de-CH') + ' Stk</strong></div>' +
-    '<label class="ml">Angekommen (bisher total)</label><input class="mi" id="dr" type="number" value="' + (d.stk_received || 0) + '" placeholder="z.B. 980">',
-    {t:'boxes', oid:oid, did:did});
-}
-
-function openAddPay(oid, did) { openModal('Zahlung hinzufuegen', payForm(), {t:'add-pay', oid:oid, did:did}); }
-function openEditPay(oid, did, pid) {
-  var d = findDelivery(oid, did);
-  var p = d && findPayment(d, pid);
-  openModal('Zahlung bearbeiten', payForm(p), {t:'edit-pay', oid:oid, did:did, pid:pid}, true);
-}
-
-function openAddFlav(oid, did) {
-  openModal('Geschmack hinzufuegen',
-    '<label class="ml">Name</label><input class="mi g2a" id="fn" placeholder="Zitrone">' +
-    '<label class="ml">Stk</label><input class="mi g2b" id="fq" type="number" value="0">',
-    {t:'add-flav', oid:oid, did:did});
-}
-
-function editFlavs(oid, did) {
-  var d = findDelivery(oid, did);
-  var rows = '';
-  d.flavors.forEach(function(f, i) {
-    rows += '<label class="ml">' + esc(f.name) + '</label>' +
-      '<div style="display:flex;gap:8px;">' +
-        '<input class="mi" id="ffn' + i + '" value="' + esc(f.name) + '" style="flex:1;">' +
-        '<input class="mi" id="ffq' + i + '" type="number" value="' + f.qty + '" style="width:100px;">' +
-      '</div>';
-  });
-  openModal('Geschmacksverteilung', rows, {t:'edit-flavs', oid:oid, did:did});
-}
-
-function modalSave() {
-  if (!CTX) return;
-  var t = CTX.t;
-  if (t === 'add-order') {
-    var no = {id:uid(), ref:gv('oref'), supplier:gv('osup'), currency:gv('ocur')||'EUR', deliveries:[]};
-    ST.orders.push(no);
-    SECTION_OPEN[no.id + '_order'] = false;
-    SECTION_OPEN[no.id + '_del'] = true;
-    SECTION_OPEN[no.id + '_pay'] = true;
-  } else if (t === 'edit-order') {
-    var o = findOrder(CTX.oid);
-    if (o) { o.ref = gv('oref'); o.supplier = gv('osup'); o.currency = gv('ocur') || 'EUR'; }
-  } else if (t === 'add-del') {
-    var o = findOrder(CTX.oid);
-    if (o) {
-      var nd = {id:uid(), name:gv('dn')||'Neue Teillieferung', deliveryDate:gv('dd'), stk_ordered:parseInt(gv('ds'))||0, stk_received:parseInt(gv('dr'))||0, netPrice:parseFloat(gv('dnet'))||0, shippingCost:parseFloat(gv('dship'))||0, flavors:[], payments:[]};
-      o.deliveries.push(nd);
-    }
-  } else if (t === 'edit-del') {
-    var d = findDelivery(CTX.oid, CTX.did);
-    if (d) { d.name = gv('dn')||d.name; d.deliveryDate = gv('dd'); d.stk_ordered = parseInt(gv('ds'))||0; d.stk_received = parseInt(gv('dr'))||0; d.netPrice = parseFloat(gv('dnet'))||0; d.shippingCost = parseFloat(gv('dship'))||0; }
-  } else if (t === 'boxes') {
-    var d = findDelivery(CTX.oid, CTX.did);
-    if (d) d.stk_received = parseInt(gv('dr')) || 0;
-  } else if (t === 'add-pay') {
-    var d = findDelivery(CTX.oid, CTX.did);
-    if (d) d.payments.push({id:uid(), ref:gv('mr'), desc:gv('md'), amount:parseFloat(gv('ma'))||0, amount_paid:parseFloat(gv('map'))||0, dueDate:gv('mdu'), paidDate:gv('mp'), notes:gv('mn')});
-  } else if (t === 'edit-pay') {
-    var d = findDelivery(CTX.oid, CTX.did);
-    var p = d && findPayment(d, CTX.pid);
-    if (p) { p.ref = gv('mr'); p.desc = gv('md'); p.amount = parseFloat(gv('ma'))||0; p.amount_paid = parseFloat(gv('map'))||0; p.dueDate = gv('mdu'); p.paidDate = gv('mp'); p.notes = gv('mn'); }
-  } else if (t === 'add-flav') {
-    var d = findDelivery(CTX.oid, CTX.did);
-    if (d) { if (!d.flavors) d.flavors = []; d.flavors.push({name:gv('fn'), qty:parseInt(gv('fq'))||0}); }
-  } else if (t === 'edit-flavs') {
-    var d = findDelivery(CTX.oid, CTX.did);
-    if (d) {
-      d.flavors = d.flavors.map(function(f, i) {
-        var nEl = document.getElementById('ffn' + i);
-        var qEl = document.getElementById('ffq' + i);
-        return {name: nEl ? nEl.value : f.name, qty: qEl ? parseInt(qEl.value) || f.qty : f.qty};
-      });
-    }
-  }
-  closeModal();
-  render();
-}
-
-function modalDelete() {
-  if (!CTX) return;
-  var t = CTX.t;
-  if (t === 'edit-order') {
-    if (!confirm('Bestellung loeschen?')) return;
-    ST.orders = ST.orders.filter(function(x) { return x.id !== CTX.oid; });
-  } else if (t === 'edit-del') {
-    if (!confirm('Teillieferung loeschen?')) return;
-    var o = findOrder(CTX.oid);
-    if (o) o.deliveries = o.deliveries.filter(function(x) { return x.id !== CTX.did; });
-  } else if (t === 'edit-pay') {
-    if (!confirm('Zahlung loeschen?')) return;
-    var d = findDelivery(CTX.oid, CTX.did);
-    if (d) d.payments = d.payments.filter(function(x) { return x.id !== CTX.pid; });
-  }
-  closeModal();
-  render();
-}
-
-document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
-
-// ---- BOOT ----
 loadState();
-initSectionOpen();
 render();
 
 </script>
