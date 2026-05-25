@@ -244,6 +244,34 @@ select option{background:#fff;}
 ::-webkit-scrollbar{width:5px;height:5px;}
 ::-webkit-scrollbar-track{background:transparent;}
 ::-webkit-scrollbar-thumb{background:var(--bds);border-radius:3px;}
+
+/* ── HOOKS v2 ── */
+.hooks-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:18px;flex-wrap:wrap;}
+.hk-filter-btn{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:5px 14px;border-radius:20px;border:1.5px solid var(--bd);background:var(--sur);color:var(--tx2);cursor:pointer;transition:all .13s;}
+.hk-filter-btn:hover{border-color:var(--bds);color:var(--tx);}
+.hk-filter-btn.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+.hk-filter-btn.imp.on{background:#F59E0B;border-color:#F59E0B;color:#fff;}
+.hk-section-lbl{font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3);text-transform:uppercase;letter-spacing:.1em;margin:16px 0 8px;}
+.hk-card{background:var(--sur);border:1.5px solid var(--bd);border-radius:12px;padding:14px 16px;margin-bottom:8px;box-shadow:var(--shadow);transition:all .15s;}
+.hk-card:hover{box-shadow:var(--shadow-md);}
+.hk-card.important{border-color:#F59E0B;background:#FFFBEB;}
+.hk-card.archived{background:var(--sur2);border-color:var(--bd);opacity:.75;}
+.hk-top{display:flex;align-items:flex-start;gap:10px;}
+.hk-star{font-size:14px;cursor:pointer;flex-shrink:0;margin-top:1px;opacity:.35;transition:all .15s;}
+.hk-star:hover{opacity:1;}
+.hk-star.on{opacity:1;}
+.hk-text{font-size:13px;color:var(--tx);line-height:1.6;flex:1;}
+.hk-edit-ta{width:100%;font-family:'Inter',sans-serif;font-size:13px;color:var(--tx);background:var(--sur);border:1.5px solid var(--teal);border-radius:8px;padding:8px 10px;outline:none;resize:vertical;min-height:60px;box-shadow:0 0 0 3px var(--teal-d);flex:1;}
+.hk-video-link{display:inline-flex;align-items:center;gap:5px;font-size:12px;color:var(--teal);text-decoration:none;margin-top:6px;font-weight:500;}
+.hk-video-link:hover{text-decoration:underline;}
+.hk-actions{display:flex;gap:5px;margin-top:10px;flex-wrap:wrap;}
+.hk-act-btn{font-family:'Inter',sans-serif;font-size:11px;padding:4px 10px;border-radius:7px;border:1px solid var(--bd);background:transparent;color:var(--tx2);cursor:pointer;transition:all .13s;display:inline-flex;align-items:center;gap:4px;}
+.hk-act-btn:hover{border-color:var(--bds);color:var(--tx);background:var(--sur2);}
+.hk-act-btn.teal{color:var(--teal);border-color:var(--teal-b);background:var(--teal-d);}
+.hk-act-btn.amber{color:#D97706;border-color:#FDE68A;background:#FFFBEB;}
+.hk-act-btn.red{color:var(--lo-c);border-color:rgba(220,38,38,.2);background:var(--lo-bg);}
+.hk-archived-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;color:var(--tx2);font-size:13px;font-weight:500;border-top:1px solid var(--bd);margin-top:8px;user-select:none;}
+.hk-archived-toggle:hover{color:var(--tx);}
 </style>
 </head>
 <body>
@@ -327,10 +355,14 @@ select option{background:#fff;}
     <div class="view" id="vw-hooks">
       <div class="scroll-view">
         <div class="vh"><div class="vh-title">Hooks</div><div class="vh-sub" id="vh-hooks-sub"></div></div>
-        <div class="hooks-grid" id="hooks-list"></div>
-        <div style="display:flex;gap:8px;margin-top:14px;max-width:580px;">
-          <input type="text" id="nh-in" placeholder="Neue Hook hinzufüegen...">
-          <button class="bsm bsav" onclick="addHook()">+ Hinzufüegen</button>
+        <div class="hooks-toolbar">
+          <button class="hk-filter-btn on" id="hkf-all" onclick="setHkFilter('all')">Alle</button>
+          <button class="hk-filter-btn imp" id="hkf-important" onclick="setHkFilter('important')">⭐ Wichtig / Aufnehmen</button>
+        </div>
+        <div id="hooks-list"></div>
+        <div style="display:flex;gap:8px;margin-top:16px;max-width:620px;">
+          <input type="text" id="nh-in" placeholder="Neue Hook hinzufügen..." style="flex:1;">
+          <button class="bsm bsav" onclick="addHook()">+ Hinzufügen</button>
         </div>
       </div>
     </div>
@@ -755,7 +787,15 @@ function renderPerfCharts(sorted){
   if(c2)charts.spend=new Chart(c2,{type:'bar',data:{labels,datasets:[{label:'Spend',data:top.map(r=>+r.spend||0),backgroundColor:'#DC2626',borderRadius:5},{label:'Revenue',data:top.map(r=>+r.revenue||0),backgroundColor:'#059669',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#6B7280'}}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:10}},grid:{color:'rgba(0,0,0,.06)'}},y:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}}}}});
 }
 
-function findCol(headers,candidates){for(const h of headers){for(const c of candidates){if(h.toLowerCase().includes(c.toLowerCase()))return h;}}return null;}
+function findCol(headers,candidates){
+  // Pass 1: exact match
+  for(const c of candidates){for(const h of headers){if(h.toLowerCase()===c.toLowerCase())return h;}}
+  // Pass 2: column starts with candidate
+  for(const c of candidates){for(const h of headers){if(h.toLowerCase().startsWith(c.toLowerCase()))return h;}}
+  // Pass 3: column contains candidate
+  for(const c of candidates){for(const h of headers){if(h.toLowerCase().includes(c.toLowerCase()))return h;}}
+  return null;
+}
 async function handleCsvFile(e){const f=e.target.files[0];if(f)await parseCsv(f);e.target.value='';}
 async function handleCsvDrop(e){e.preventDefault();document.querySelector('.upload-zone')?.classList.remove('drag-active');const f=e.dataTransfer.files[0];if(f)await parseCsv(f);}
 async function parseCsv(file){
@@ -766,17 +806,21 @@ async function parseCsv(file){
       const toNum=s=>parseFloat(String(s||0).replace(/[^0-9.,-]/g,'').replace(',','.').replace("'",""))||0;
       const toInt=s=>parseInt(String(s||0).replace(/[^0-9]/g,''))||0;
       const rows=result.data.map(row=>({
-        ad_name:get(['ad name','anzeigenname','name der anzeige'],row)||get(['campaign name','kampagnenname'],row)||'',
+        ad_name:get(['name der anzeige','ad name','anzeigenname'],row)||get(['campaign name','kampagnenname'],row)||'',
         campaign_name:get(['campaign name','kampagnenname'],row)||'',
-        spend:toNum(get(['amount spent','ausgegebener betrag'],row)),
-        impressions:toInt(get(['impressions','impressionen'],row)),
-        clicks:toInt(get(['clicks','klicks'],row)),
-        purchases:toInt(get(['purchases','käufe','results'],row)),
+        spend:toNum(get(['ausgegebener betrag (chf)','amount spent','ausgegebener betrag'],row)),
+        impressions:toInt(get(['impressionen','impressions'],row)),
+        clicks:toInt(get(['link-klicks','link-clicks','clicks','klicks'],row)),
+        purchases:toInt(get(['käufe','purchases','results'],row)),
         revenue:toNum(get(['purchase conversion value','kaufkonversionswert'],row)),
-        roas:toNum(get(['purchase roas','kauf-roas'],row)),
-        ctr:toNum(get(['ctr'],row)),
-        cpm:toNum(get(['cpm'],row))
-      })).filter(r=>r.ad_name||r.spend>0);
+        roas:toNum(get(['roas (return on ad spend)','roas für käufe','purchase roas','kauf-roas'],row)),
+        ctr:toNum(get(['ctr (link-klickrate)','ctr'],row)),
+        cpm:toNum(get(['cpm (kosten','cpm'],row))
+      })).map(r=>{
+        // If no revenue from CSV, calculate from ROAS x Spend
+        if((!r.revenue||r.revenue===0) && r.roas>0 && r.spend>0) r.revenue=Math.round(r.roas*r.spend*100)/100;
+        return r;
+      }).filter(r=>r.ad_name||r.spend>0);
       if(!rows.length){showToast('❌ Keine Daten gefunden.');resolve();return;}
       try{
         await Promise.all(rows.map(r=>dbInsert('meta_performance',r)));
@@ -794,23 +838,148 @@ async function clearMetaData(){
   metaData=[];renderPerformance();
 }
 
-/* ── HOOKS ── */
-function renderHooks(){
-  const sc=hooks.filter(h=>h.selected).length;
-  document.getElementById('vh-hooks-sub').textContent=sc+' ausgewählt';
-  document.getElementById('hooks-list').innerHTML=hooks.map(hk=>`
-    <div class="hk${hk.selected?' sel':''}" onclick="togHook('${hk.id}')">
-      <div class="hk-box">${hk.selected?'✓':''}</div>
-      <div class="hk-txt">${esc(hk.text)}</div>
-    </div>`).join('');
+/* ── HOOKS v2 ── */
+let hkFilter='all', editingHookId=null, showArchived=false;
+
+function setHkFilter(f){
+  hkFilter=f;
+  document.querySelectorAll('.hk-filter-btn').forEach(b=>b.classList.remove('on'));
+  document.getElementById('hkf-'+f)?.classList.add('on');
+  renderHooks();
 }
-async function togHook(id){const hk=hooks.find(h=>h.id===id);if(hk){hk.selected=!hk.selected;await dbUpdate('hooks',id,{selected:hk.selected});renderHooks();}}
+
+function renderHooks(){
+  // Sort newest first
+  const sorted=[...hooks].sort((a,b)=>{
+    const da=a.created_at||a.id||'';
+    const db2=b.created_at||b.id||'';
+    return db2.localeCompare(da);
+  });
+
+  const active=sorted.filter(h=>!h.archived);
+  const archived=sorted.filter(h=>h.archived);
+  const important=active.filter(h=>h.important);
+  const normal=active.filter(h=>!h.important);
+
+  const display = hkFilter==='important'
+    ? important
+    : [...important,...normal];
+
+  document.getElementById('vh-hooks-sub').textContent=
+    `${active.length} aktiv · ${important.length} wichtig · ${archived.length} archiviert`;
+
+  let html='';
+
+  if(hkFilter==='important' && important.length===0){
+    html='<div class="empty" style="padding:30px 0;">Noch keine wichtigen Hooks markiert.<br>Klicke auf ⭐ um einen Hook zu markieren.</div>';
+  } else {
+    display.forEach(hk=>{ html+=renderHookCard(hk); });
+  }
+
+  // Archived section
+  if(archived.length>0){
+    html+=`<div class="hk-archived-toggle" onclick="toggleArchived()">
+      <span>${showArchived?'▼':'▶'}</span>
+      <span>Archiviert (${archived.length})</span>
+    </div>`;
+    if(showArchived){
+      archived.forEach(hk=>{ html+=renderHookCard(hk); });
+    }
+  }
+
+  document.getElementById('hooks-list').innerHTML=html;
+}
+
+function renderHookCard(hk){
+  const isEditing=editingHookId===hk.id;
+  return `<div class="hk-card${hk.important?' important':''}${hk.archived?' archived':''}">
+    <div class="hk-top">
+      <span class="hk-star${hk.important?' on':''}" onclick="toggleImportant('${hk.id}')" title="Als wichtig markieren">⭐</span>
+      ${isEditing
+        ? `<textarea class="hk-edit-ta" id="hk-edit-${hk.id}" onkeydown="hkEditKey(event,'${hk.id}')">${esc(hk.text)}</textarea>`
+        : `<div class="hk-text">${esc(hk.text)}</div>`
+      }
+    </div>
+    ${hk.video_url?`<a href="${esc(hk.video_url)}" target="_blank" class="hk-video-link">🎬 Video ansehen</a>`:''}
+    <div class="hk-actions">
+      ${isEditing
+        ? `<button class="hk-act-btn teal" onclick="saveHookEdit('${hk.id}')">✓ Speichern</button>
+           <button class="hk-act-btn" onclick="cancelHookEdit()">Abbrechen</button>`
+        : `<button class="hk-act-btn" onclick="startEditHook('${hk.id}')">✏️ Bearbeiten</button>
+           <button class="hk-act-btn${hk.important?' amber':''}" onclick="toggleImportant('${hk.id}')">${hk.important?'⭐ Wichtig':'☆ Markieren'}</button>
+           <button class="hk-act-btn" onclick="addVideoLink('${hk.id}')">${hk.video_url?'🎬 Link ändern':'🎬 Video hinzufügen'}</button>
+           ${!hk.archived
+             ? `<button class="hk-act-btn red" onclick="archiveHook('${hk.id}')" title="Archivieren">📁 Archivieren</button>`
+             : `<button class="hk-act-btn" onclick="unarchiveHook('${hk.id}')">↩ Wiederherstellen</button>`
+           }`
+      }
+    </div>
+  </div>`;
+}
+
+function toggleArchived(){ showArchived=!showArchived; renderHooks(); }
+
+function startEditHook(id){ editingHookId=id; renderHooks(); setTimeout(()=>{ const ta=document.getElementById('hk-edit-'+id); if(ta){ta.focus();ta.selectionStart=ta.value.length;} },50); }
+function cancelHookEdit(){ editingHookId=null; renderHooks(); }
+function hkEditKey(e,id){ if(e.key==='Escape')cancelHookEdit(); if(e.key==='Enter'&&e.metaKey)saveHookEdit(id); }
+
+async function saveHookEdit(id){
+  const ta=document.getElementById('hk-edit-'+id);
+  if(!ta||!ta.value.trim()){cancelHookEdit();return;}
+  const hk=hooks.find(h=>h.id===id);
+  if(hk){ hk.text=ta.value.trim(); await dbUpdate('hooks',id,{text:hk.text}); }
+  editingHookId=null; renderHooks();
+}
+
+async function toggleImportant(id){
+  const hk=hooks.find(h=>h.id===id);
+  if(!hk)return;
+  hk.important=!hk.important;
+  try{ await dbUpdate('hooks',id,{important:hk.important}); }catch(e){ /* column may not exist yet */ }
+  renderHooks();
+}
+
+async function addVideoLink(id){
+  const hk=hooks.find(h=>h.id===id);
+  if(!hk)return;
+  const url=prompt('Video URL eingeben (Instagram, TikTok, YouTube...):', hk.video_url||'');
+  if(url===null)return;
+  hk.video_url=url.trim();
+  try{ await dbUpdate('hooks',id,{video_url:hk.video_url}); }catch(e){ /* column may not exist */ }
+  renderHooks();
+}
+
+async function archiveHook(id){
+  const hk=hooks.find(h=>h.id===id);
+  if(!hk)return;
+  hk.archived=true;
+  try{ await dbUpdate('hooks',id,{archived:true}); }catch(e){ /* column may not exist */ }
+  renderHooks(); showToast('📁 Hook archiviert');
+}
+
+async function unarchiveHook(id){
+  const hk=hooks.find(h=>h.id===id);
+  if(!hk)return;
+  hk.archived=false;
+  try{ await dbUpdate('hooks',id,{archived:false}); }catch(e){ /* column may not exist */ }
+  renderHooks();
+}
+
+async function togHook(id){ archiveHook(id); }
+
 async function addHook(){
   const inp=document.getElementById('nh-in');
   if(!inp||!inp.value.trim())return;
-  const result=await dbInsert('hooks',{text:inp.value.trim(),selected:false});
-  if(result)hooks.push(result[0]);
-  inp.value='';renderHooks();
+  const newHook={text:inp.value.trim(),selected:false,important:false,archived:false,video_url:''};
+  try{
+    const result=await dbInsert('hooks',newHook);
+    if(result)hooks.unshift(result[0]);
+  }catch(e){
+    // fallback minimal insert
+    const result=await dbInsert('hooks',{text:inp.value.trim(),selected:false});
+    if(result)hooks.unshift(result[0]);
+  }
+  inp.value=''; renderHooks();
 }
 
 /* ── SETTINGS ── */
