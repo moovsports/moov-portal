@@ -732,6 +732,9 @@ async function addAd(){
 }
 
 /* ── PERFORMANCE ── */
+function roasCls(r){return r>=2.5?'roas-g':r>=1?'roas-a':'roas-r';}
+function fmtNum(n){return(+n||0).toLocaleString('de-CH');}
+
 function renderPerformance(){
   // Group by KW
   const weeks=getWeeks();
