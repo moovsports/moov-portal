@@ -238,7 +238,7 @@ var DEF_WEEKS = [
     umsatz: 5397, bestellungen: 96, artikel: 201, meta: 1534, retouren: 0, extra: 0
   },
   {
-    id: 'kw21', kw: 'KW 21', year: 2026, isRef: false,
+    id: 'kw21', kw: 'KW 20', year: 2026, isRef: false,
     umsatz: 3806, bestellungen: 71, artikel: 139, meta: 1507, retouren: 0, extra: 0
   }
 ];
@@ -279,6 +279,17 @@ var state;
       weeks: weeks,
       currentId: 'kw21'
     };
+  }
+  // One-time migration: fix off-by-one KW numbers
+  if (state && state.weeks && !state._kwMigrated) {
+    state.weeks.forEach(function(w) {
+      if (!w.isRef) {
+        var m = String(w.kw).match(/^KW (\d+)$/);
+        if (m) { w.kw = 'KW ' + (parseInt(m[1]) - 1); }
+      }
+    });
+    state._kwMigrated = true;
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch(e) {}
   }
 })();
 
@@ -528,8 +539,11 @@ function deleteCurrentWeek() {
 function openModal() {
   var kw = new Date();
   var jan1 = new Date(kw.getFullYear(), 0, 1);
-  var weekNum = Math.ceil((((kw - jan1) / 86400000) + jan1.getDay() + 1) / 7);
-  document.getElementById('m-kw').value = weekNum + 1;
+  var d2=new Date(Date.UTC(kw.getFullYear(),kw.getMonth(),kw.getDate()));
+  var dn=d2.getUTCDay()||7;d2.setUTCDate(d2.getUTCDate()+4-dn);
+  var ys=new Date(Date.UTC(d2.getUTCFullYear(),0,1));
+  var weekNum=Math.ceil((((d2-ys)/86400000)+1)/7);
+  document.getElementById('m-kw').value = weekNum;
   document.getElementById('m-year').value = kw.getFullYear();
   document.getElementById('modal').style.display='flex';
 }
