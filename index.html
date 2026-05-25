@@ -201,6 +201,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--tx);font-
 .roas-g{background:var(--wi-bg);color:var(--wi-c);}
 .roas-a{background:var(--au-bg);color:var(--au-c);}
 .roas-r{background:var(--lo-bg);color:var(--lo-c);}
+.week-tabs-wrap{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;align-items:center;}
+.week-tab{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:6px 14px;border-radius:20px;border:1.5px solid var(--bd);background:var(--sur);color:var(--tx2);cursor:pointer;transition:all .13s;}
+.week-tab:hover{border-color:var(--bds);color:var(--tx);}
+.week-tab.on{background:var(--teal);border-color:var(--teal);color:#fff;}
+.week-tab.add-tab{border-style:dashed;color:var(--teal);border-color:var(--teal-b);}
+.week-tab.add-tab:hover{background:var(--teal-d);}
 
 /* ── HOOKS ── */
 .hooks-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
@@ -727,115 +733,280 @@ async function addAd(){
 
 /* ── PERFORMANCE ── */
 function renderPerformance(){
-  const totalSpend=metaData.reduce((s,r)=>s+(+r.spend||0),0);
-  const totalRevenue=metaData.reduce((s,r)=>s+(+r.revenue||0),0);
+  // Group by KW
+  const weeks=getWeeks();
+  const curKW=window.selectedKW||(weeks.length?weeks[weeks.length-1]:'');
+  window.selectedKW=curKW;
+  const weekData=curKW?metaData.filter(r=>r.kw===curKW):metaData;
+
+  const totalSpend=weekData.reduce((s,r)=>s+(+r.spend||0),0);
+  const totalRevenue=weekData.reduce((s,r)=>s+(+r.revenue||0),0);
   const totalRoas=totalSpend>0?(totalRevenue/totalSpend):0;
   const totalProfit=totalRevenue-totalSpend;
-  let html=`<div class="vh"><div class="vh-title">Performance</div><div class="vh-sub">${metaData.length} Datensätze</div></div>
-    <div class="cards-row">
-      <div class="stat-card"><div class="stat-card-lbl">Ad Spend</div><div class="stat-card-val">${fmtCHF(totalSpend)}</div></div>
-      <div class="stat-card ${totalRevenue>0?'green':''}"><div class="stat-card-lbl">Revenue</div><div class="stat-card-val">${fmtCHF(totalRevenue)}</div></div>
-      <div class="stat-card ${totalRoas>=2?'green':totalRoas>=1?'amber':'red'}"><div class="stat-card-lbl">ROAS</div><div class="stat-card-val">${totalRoas.toFixed(2)}x</div></div>
-      <div class="stat-card ${totalProfit>=0?'green':'red'}"><div class="stat-card-lbl">Profit</div><div class="stat-card-val">${fmtCHF(totalProfit)}</div></div>
-    </div>`;
+
+  // Week selector
+  let weekTabs=weeks.map(w=>`<button class="week-tab${w===curKW?' on':''}" onclick="selectKW('${w}')">${w}</button>`).join('');
+  let weekBarHtml=weeks.length>0?`<div class="week-tabs-wrap">${weekTabs}<button class="week-tab add-tab" onclick="openUploadKW()">+ KW hochladen</button></div>`:'';
+
+  let html=`<div class="vh"><div class="vh-title">Performance</div><div class="vh-sub">${weekData.length} Ads${curKW?' · '+curKW:''}</div></div>
+  ${weekBarHtml}
+  <div class="cards-row">
+    <div class="stat-card"><div class="stat-card-lbl">Ad Spend</div><div class="stat-card-val">${fmtCHF(totalSpend)}</div></div>
+    <div class="stat-card ${totalRevenue>0?'green':''}"><div class="stat-card-lbl">Revenue</div><div class="stat-card-val">${fmtCHF(totalRevenue)}</div></div>
+    <div class="stat-card ${totalRoas>=2?'green':totalRoas>=1?'amber':'red'}"><div class="stat-card-lbl">ROAS</div><div class="stat-card-val">${totalRoas.toFixed(2)}x</div></div>
+    <div class="stat-card ${totalProfit>=0?'green':'red'}"><div class="stat-card-lbl">Profit</div><div class="stat-card-val">${fmtCHF(totalProfit)}</div></div>
+  </div>`;
+
   if(!metaData.length){
-    html+=`<div class="upload-zone" onclick="document.getElementById('csv-input').click()"
-      ondragover="event.preventDefault();this.classList.add('drag-active')"
-      ondragleave="this.classList.remove('drag-active')"
-      ondrop="handleCsvDrop(event)">
-      <div style="font-size:32px;margin-bottom:8px;">📊</div>
-      <div class="upload-zone-title">Meta CSV hochladen</div>
-      <div class="upload-zone-sub">Klicke oder ziehe deine Meta Ads Manager CSV-Datei hierher</div>
-    </div>
-    <input type="file" id="csv-input" accept=".csv" style="display:none" onchange="handleCsvFile(event)">
-    <div style="font-size:12px;color:var(--tx2);line-height:1.7;max-width:500px;background:var(--sur);border:1px solid var(--bd);border-radius:12px;padding:16px 18px;">
-      <strong style="color:var(--tx);">CSV aus Meta exportieren:</strong><br>
-      Ads Manager → Berichte → Spalten: Anzeigenname, Ausgegebener Betrag, Impressionen, Klicks, CTR, CPM, Käufe, Kaufkonversionswert, Kauf-ROAS → Als CSV exportieren
-    </div>`;
-  } else {
-    const sorted=[...metaData].sort((a,b)=>(+b.roas||0)-(+a.roas||0));
-    html+=`<div style="display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;">
-      <button class="bsm bsav" onclick="document.getElementById('csv2').click()">+ Weitere CSV laden</button>
-      <input type="file" id="csv2" accept=".csv" style="display:none" onchange="handleCsvFile(event)">
-      <button class="bsm bdel" onclick="clearMetaData()">Alle löschen</button>
+    html+=`<div class="upload-zone" onclick="openUploadKW()" ondragover="event.preventDefault();this.classList.add('drag-active')" ondragleave="this.classList.remove('drag-active')" ondrop="handleCsvDrop(event)"><div class="upload-zone-title">📊 Erste CSV hochladen</div><div class="upload-zone-sub">Klicke oder ziehe deine Meta Ads Manager CSV hierher</div></div>`;
+    document.getElementById('perf-content').innerHTML=html;
+    return;
+  }
+
+  // Per-week section + trend charts
+  const sorted=[...weekData].sort((a,b)=>(+b.roas||0)-(+a.roas||0));
+
+  html+=`<div class="charts-grid">
+    <div class="chart-card"><div class="chart-title">ROAS pro Ad – ${curKW||'Alle'}</div><div class="chart-wrap"><canvas id="chart-roas"></canvas></div></div>
+    <div class="chart-card"><div class="chart-title">Spend vs. Revenue – ${curKW||'Alle'}</div><div class="chart-wrap"><canvas id="chart-spend"></canvas></div></div>
+  </div>`;
+
+  if(weeks.length>1){
+    html+=`<div class="charts-grid">
+      <div class="chart-card" style="grid-column:1/-1"><div class="chart-title">ROAS-Verlauf – Top Ads über alle Wochen</div><div class="chart-wrap" style="height:260px"><canvas id="chart-trend"></canvas></div></div>
     </div>
     <div class="charts-grid">
-      <div class="chart-card"><div class="chart-title">ROAS pro Ad</div><div class="chart-wrap"><canvas id="chart-roas"></canvas></div></div>
-      <div class="chart-card"><div class="chart-title">Spend vs Revenue</div><div class="chart-wrap"><canvas id="chart-spend"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">Spend pro Woche</div><div class="chart-wrap"><canvas id="chart-wk-spend"></canvas></div></div>
+      <div class="chart-card"><div class="chart-title">ROAS-Durchschnitt pro Woche</div><div class="chart-wrap"><canvas id="chart-wk-roas"></canvas></div></div>
+    </div>`;
+  }
+
+  html+=`<div style="background:var(--sur);border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);margin-bottom:12px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--bd);">
+      <div style="font-size:13px;font-weight:600;color:var(--tx);">${curKW?'Ads in '+curKW:'Alle Ads'}</div>
+      <div style="display:flex;gap:7px;">
+        <button class="bsm bsav" onclick="openUploadKW()">+ KW hochladen</button>
+        ${curKW?`<button class="bsm bdel" onclick="deleteKW('${curKW}')">KW löschen</button>`:''}
+      </div>
     </div>
-    <div style="background:var(--sur);border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);">
+    <div style="overflow-x:auto;">
+    <table class="perf-table">
+      <thead><tr><th>Ad Name</th><th>Spend</th><th>Revenue</th><th>ROAS</th><th>Impressionen</th><th>CTR</th><th>Käufe</th></tr></thead>
+      <tbody>${sorted.map(r=>`<tr>
+        <td>${esc(r.ad_name||'–')}</td>
+        <td>${fmtCHF(r.spend)}</td>
+        <td>${fmtCHF(r.revenue)}</td>
+        <td><span class="roas-badge ${roasCls(+r.roas)}">${(+r.roas||0).toFixed(2)}x</span></td>
+        <td>${fmtNum(r.impressions)}</td>
+        <td>${(+r.ctr||0).toFixed(2)}%</td>
+        <td>${fmtNum(r.purchases)}</td>
+      </tr>`).join('')}
+      </tbody>
+    </table>
+    </div>
+  </div>`;
+
+  // Weekly archive
+  if(weeks.length>1){
+    html+=`<div style="background:var(--sur);border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--bd);font-size:13px;font-weight:600;color:var(--tx);">Wochenarchiv</div>
       <table class="perf-table">
-        <thead><tr><th>Ad Name</th><th>Spend</th><th>Revenue</th><th>ROAS</th><th>Impressionen</th><th>CTR</th><th>Käufe</th></tr></thead>
-        <tbody>${sorted.map(r=>`<tr><td>${esc(r.ad_name||'–')}</td><td>${fmtCHF(r.spend)}</td><td>${fmtCHF(r.revenue)}</td><td><span class="roas-badge ${(+r.roas||0)>=2.5?'roas-g':(+r.roas||0)>=1?'roas-a':'roas-r'}">${(+r.roas||0).toFixed(2)}x</span></td><td>${(+r.impressions||0).toLocaleString('de-CH')}</td><td>${(+r.ctr||0).toFixed(2)}%</td><td>${r.purchases||0}</td></tr>`).join('')}</tbody>
+        <thead><tr><th>KW</th><th>Spend</th><th>Revenue</th><th>ROAS Ø</th><th>Ads</th><th>Käufe</th></tr></thead>
+        <tbody>${weeks.slice().reverse().map(w=>{
+          const wd=metaData.filter(r=>r.kw===w);
+          const sp=wd.reduce((s,r)=>s+(+r.spend||0),0);
+          const rv=wd.reduce((s,r)=>s+(+r.revenue||0),0);
+          const ro=sp>0?rv/sp:0;
+          const pu=wd.reduce((s,r)=>s+(+r.purchases||0),0);
+          return`<tr style="cursor:pointer" onclick="selectKW('${w}')">
+            <td><strong>${w}</strong>${w===curKW?'<span style="margin-left:6px;font-family:DM Mono,monospace;font-size:10px;background:var(--teal-d);color:var(--teal);padding:1px 7px;border-radius:20px;">Aktiv</span>':''}</td>
+            <td>${fmtCHF(sp)}</td><td>${fmtCHF(rv)}</td>
+            <td><span class="roas-badge ${roasCls(ro)}">${ro.toFixed(2)}x</span></td>
+            <td>${wd.length}</td><td>${fmtNum(pu)}</td>
+          </tr>`;
+        }).join('')}
+        </tbody>
       </table>
     </div>`;
-    setTimeout(()=>renderPerfCharts(sorted),50);
   }
+
   document.getElementById('perf-content').innerHTML=html;
+  setTimeout(()=>renderPerfCharts(sorted, weeks),50);
 }
 
-function renderPerfCharts(sorted){
-  const top=sorted.slice(0,10);
-  const labels=top.map(r=>(r.ad_name||'–').substring(0,20));
-  const rv=top.map(r=>+(+r.roas||0).toFixed(2));
-  const colors=rv.map(v=>v>=2.5?'#059669':v>=1?'#D97706':'#DC2626');
-  if(charts.roas){charts.roas.destroy();}
-  const c1=document.getElementById('chart-roas');
-  if(c1)charts.roas=new Chart(c1,{type:'bar',data:{labels,datasets:[{label:'ROAS',data:rv,backgroundColor:colors,borderRadius:5}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}},y:{ticks:{color:'#6B7280',font:{size:11}},grid:{display:false}}}}});
-  if(charts.spend){charts.spend.destroy();}
-  const c2=document.getElementById('chart-spend');
-  if(c2)charts.spend=new Chart(c2,{type:'bar',data:{labels,datasets:[{label:'Spend',data:top.map(r=>+r.spend||0),backgroundColor:'#DC2626',borderRadius:5},{label:'Revenue',data:top.map(r=>+r.revenue||0),backgroundColor:'#059669',borderRadius:5}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#6B7280'}}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:10}},grid:{color:'rgba(0,0,0,.06)'}},y:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}}}}});
+function getWeeks(){
+  const set=new Set(metaData.map(r=>r.kw).filter(Boolean));
+  return [...set].sort();
 }
+
+function selectKW(kw){
+  window.selectedKW=kw;
+  renderPerformance();
+}
+
+async function deleteKW(kw){
+  if(!confirm(`KW "${kw}" und alle zugehörigen Ads löschen?`))return;
+  const toDelete=metaData.filter(r=>r.kw===kw);
+  await Promise.all(toDelete.map(m=>dbDelSerial('meta_performance',m.id)));
+  metaData=metaData.filter(r=>r.kw!==kw);
+  if(window.selectedKW===kw){const weeks=getWeeks();window.selectedKW=weeks.length?weeks[weeks.length-1]:'';}
+  renderPerformance();showToast(`✓ ${kw} gelöscht.`);
+}
+
+function openUploadKW(){
+  // Show KW upload modal
+  const curWeekNum=(()=>{const d=new Date(),dn=d.getDay()||7;d.setDate(d.getDate()+4-dn);const y=new Date(Date.UTC(d.getFullYear(),0,1));return Math.ceil(((d-y)/86400000+1)/7);})();
+  const html=`<div style="margin-bottom:14px;font-size:13px;color:var(--tx2);">Für welche Kalenderwoche ist das CSV?</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">
+      <div><label style="font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);display:block;margin-bottom:5px;">Woche</label>
+      <input id="upload-kw" type="number" min="1" max="53" value="${curWeekNum}" style="width:100%;font-family:'Inter',sans-serif;font-size:16px;font-weight:600;color:var(--tx);background:var(--sur2);border:1.5px solid var(--bd);border-radius:9px;padding:9px 12px;outline:none;"></div>
+      <div><label style="font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);display:block;margin-bottom:5px;">Jahr</label>
+      <input id="upload-year" type="number" value="2026" style="width:100%;font-family:'Inter',sans-serif;font-size:16px;font-weight:600;color:var(--tx);background:var(--sur2);border:1.5px solid var(--bd);border-radius:9px;padding:9px 12px;outline:none;"></div>
+    </div>
+    <div style="background:var(--sur2);border-radius:10px;padding:11px 14px;font-size:12px;color:var(--tx2);margin-bottom:12px;">
+      ⚠️ Wenn für diese KW bereits Daten vorhanden sind, werden sie ersetzt.
+    </div>
+    <div class="upload-zone" id="kw-drop-zone" style="margin-bottom:0;" 
+      onclick="document.getElementById('kw-csv-input').click()"
+      ondragover="event.preventDefault();this.classList.add('drag-active')"
+      ondragleave="this.classList.remove('drag-active')"
+      ondrop="handleKWCsvDrop(event)">
+      <div class="upload-zone-title">📊 CSV hier ablegen</div>
+      <div class="upload-zone-sub">oder klicken zum Auswählen</div>
+    </div>
+    <input type="file" id="kw-csv-input" accept=".csv" style="display:none" onchange="handleKWCsvFile(event)">`;
+  showSimpleModal('CSV für Kalenderwoche hochladen', html);
+}
+
+function showSimpleModal(title, body){
+  // Reuse existing modal infrastructure if available
+  if(document.getElementById('perf-modal')){
+    document.getElementById('perf-modal').remove();
+  }
+  const overlay=document.createElement('div');
+  overlay.id='perf-modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;z-index:300;padding:20px;backdrop-filter:blur(3px);';
+  overlay.innerHTML=`<div style="background:var(--sur);border-radius:15px;padding:22px;width:100%;max-width:500px;box-shadow:var(--shadow-md);border:1px solid var(--bd);">
+    <div style="font-size:16px;font-weight:700;color:var(--tx);margin-bottom:14px;letter-spacing:-.02em;">${title}</div>
+    ${body}
+    <button onclick="document.getElementById('perf-modal').remove()" style="margin-top:12px;font-family:'Inter',sans-serif;font-size:12px;padding:7px 16px;border-radius:8px;border:1.5px solid var(--bd);background:var(--sur);color:var(--tx2);cursor:pointer;width:100%;">Schliessen</button>
+  </div>`;
+  overlay.addEventListener('click',e=>{if(e.target===overlay)overlay.remove();});
+  document.body.appendChild(overlay);
+}
+
+function getUploadKW(){
+  const kw=parseInt(document.getElementById('upload-kw')?.value)||1;
+  const year=parseInt(document.getElementById('upload-year')?.value)||2026;
+  return `KW ${kw} / ${year}`;
+}
+
+async function handleKWCsvFile(e){const f=e.target.files[0];if(f){const kw=getUploadKW();await parseCsvWithKW(f,kw);}e.target.value='';}
+async function handleKWCsvDrop(e){e.preventDefault();document.getElementById('kw-drop-zone')?.classList.remove('drag-active');const f=e.dataTransfer.files[0];if(f){const kw=getUploadKW();await parseCsvWithKW(f,kw);}}
+async function handleCsvFile(e){const f=e.target.files[0];if(f)await parseCsvWithKW(f,'');e.target.value='';}
+async function handleCsvDrop(e){e.preventDefault();document.querySelector('.upload-zone')?.classList.remove('drag-active');const f=e.dataTransfer.files[0];if(f)await parseCsvWithKW(f,'');}
 
 function findCol(headers,candidates){
-  // Pass 1: exact match
   for(const c of candidates){for(const h of headers){if(h.toLowerCase()===c.toLowerCase())return h;}}
-  // Pass 2: column starts with candidate
   for(const c of candidates){for(const h of headers){if(h.toLowerCase().startsWith(c.toLowerCase()))return h;}}
-  // Pass 3: column contains candidate
   for(const c of candidates){for(const h of headers){if(h.toLowerCase().includes(c.toLowerCase()))return h;}}
   return null;
 }
-async function handleCsvFile(e){const f=e.target.files[0];if(f)await parseCsv(f);e.target.value='';}
-async function handleCsvDrop(e){e.preventDefault();document.querySelector('.upload-zone')?.classList.remove('drag-active');const f=e.dataTransfer.files[0];if(f)await parseCsv(f);}
-async function parseCsv(file){
+
+async function parseCsvWithKW(file,kw){
+  const zone=document.getElementById('kw-drop-zone');
+  if(zone)zone.innerHTML='<div class="upload-zone-title">⏳ Wird verarbeitet...</div>';
   return new Promise(resolve=>{
     Papa.parse(file,{header:true,skipEmptyLines:true,complete:async(result)=>{
       const h=result.meta.fields||[];
       const get=(cands,row)=>{const col=findCol(h,cands);return col?row[col]:'';};
       const toNum=s=>parseFloat(String(s||0).replace(/[^0-9.,-]/g,'').replace(',','.').replace("'",""))||0;
       const toInt=s=>parseInt(String(s||0).replace(/[^0-9]/g,''))||0;
-      const rows=result.data.map(row=>({
-        ad_name:get(['name der anzeige','ad name','anzeigenname'],row)||get(['campaign name','kampagnenname'],row)||'',
-        campaign_name:get(['campaign name','kampagnenname'],row)||'',
-        spend:toNum(get(['ausgegebener betrag (chf)','amount spent','ausgegebener betrag'],row)),
-        impressions:toInt(get(['impressionen','impressions'],row)),
-        clicks:toInt(get(['link-klicks','link-clicks','clicks','klicks'],row)),
-        purchases:toInt(get(['käufe','purchases','results'],row)),
-        revenue:toNum(get(['purchase conversion value','kaufkonversionswert'],row)),
-        roas:toNum(get(['roas (return on ad spend)','roas für käufe','purchase roas','kauf-roas'],row)),
-        ctr:toNum(get(['ctr (link-klickrate)','ctr'],row)),
-        cpm:toNum(get(['cpm (kosten','cpm'],row))
-      })).map(r=>{
-        // If no revenue from CSV, calculate from ROAS x Spend
-        if((!r.revenue||r.revenue===0) && r.roas>0 && r.spend>0) r.revenue=Math.round(r.roas*r.spend*100)/100;
+      const rows=result.data.map(row=>{
+        const sp=toNum(get(['ausgegebener betrag (chf)','amount spent','ausgegebener betrag'],row));
+        const ro=toNum(get(['roas (return on ad spend)','roas für käufe','purchase roas','kauf-roas'],row));
+        let rv=toNum(get(['purchase conversion value','kaufkonversionswert','conversion value'],row));
+        if(rv===0&&ro>0&&sp>0)rv=Math.round(ro*sp*100)/100;
+        return {
+          ad_name:get(['name der anzeige','ad name','anzeigenname'],row)||get(['campaign name','kampagnenname'],row)||'',
+          campaign_name:get(['campaign name','kampagnenname'],row)||'',
+          kw:kw,
+          spend:sp,
+          impressions:toInt(get(['impressionen','impressions'],row)),
+          clicks:toInt(get(['link-klicks','link-clicks','clicks','klicks'],row)),
+          purchases:toInt(get(['käufe','purchases','results'],row)),
+          revenue:rv,roas:ro,
+          ctr:toNum(get(['ctr (link-klickrate)','ctr'],row)),
+          cpm:toNum(get(['cpm (kosten','cpm'],row))
+        };
+      }).map(r=>{
+        if((!r.revenue||r.revenue===0)&&r.roas>0&&r.spend>0)r.revenue=Math.round(r.roas*r.spend*100)/100;
         return r;
       }).filter(r=>r.ad_name||r.spend>0);
-      if(!rows.length){showToast('❌ Keine Daten gefunden.');resolve();return;}
+      if(!rows.length){showToast('❌ Keine Daten gefunden.');if(zone)zone.innerHTML='<div class="upload-zone-title">❌ Keine Daten</div>';resolve();return;}
       try{
-        await Promise.all(rows.map(r=>dbInsert('meta_performance',r)));
-        metaData=[...metaData,...rows];
-        showToast(`✓ ${rows.length} Einträge geladen!`);
+        // Delete existing data for this KW first (prevents duplicates)
+        if(kw){
+          const existing=metaData.filter(m=>m.kw===kw);
+          if(existing.length){
+            await Promise.all(existing.map(m=>dbDelSerial('meta_performance',m.id)));
+            metaData=metaData.filter(m=>m.kw!==kw);
+            showToast(`🔄 Alte ${kw}-Daten ersetzt...`);
+          }
+        }
+        const saved=await Promise.all(rows.map(r=>dbInsert('meta_performance',r)));
+        saved.forEach(res=>{if(res&&res[0])metaData.push(res[0]);});
+        window.selectedKW=kw||getWeeks().slice(-1)[0];
+        document.getElementById('perf-modal')?.remove();
+        showToast(`✓ ${rows.length} Ads für ${kw||'–'} geladen!`);
         renderPerformance();
       }catch(err){showToast('❌ Fehler: '+err.message);}
       resolve();
     }});
   });
 }
-async function clearMetaData(){
-  if(!confirm('Alle Meta-Daten wirklich löschen?'))return;
-  await Promise.all(metaData.map(m=>dbDelSerial('meta_performance',m.id)));
-  metaData=[];renderPerformance();
+
+async function clearMetaData(){if(!confirm('Alle Meta-Daten löschen?'))return;await Promise.all(metaData.map(m=>dbDelSerial('meta_performance',m.id)));metaData=[];window.selectedKW='';renderPerformance();showToast('✓ Daten gelöscht.');}
+
+function renderPerfCharts(sorted, weeks){
+  const top=sorted.slice(0,10);
+  const labels=top.map(r=>(r.ad_name||'–').substring(0,20));
+  const rv=top.map(r=>+(+r.roas||0).toFixed(2));
+  const colors=rv.map(v=>v>=2.5?'rgba(5,150,105,.7)':v>=1?'rgba(217,119,6,.7)':'rgba(220,38,38,.7)');
+
+  if(charts['chart-roas']){charts['chart-roas'].destroy();delete charts['chart-roas'];}
+  const c1=document.getElementById('chart-roas');
+  if(c1)charts['chart-roas']=new Chart(c1,{type:'bar',data:{labels,datasets:[{label:'ROAS',data:rv,backgroundColor:colors,borderRadius:4}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}},y:{ticks:{color:'#6B7280',font:{size:11}},grid:{display:false}}}}});
+
+  if(charts['chart-spend']){charts['chart-spend'].destroy();delete charts['chart-spend'];}
+  const c2=document.getElementById('chart-spend');
+  if(c2)charts['chart-spend']=new Chart(c2,{type:'bar',data:{labels,datasets:[{label:'Spend',data:top.map(r=>+r.spend||0),backgroundColor:'rgba(220,38,38,.6)',borderRadius:4},{label:'Revenue',data:top.map(r=>+r.revenue||0),backgroundColor:'rgba(5,150,105,.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#6B7280'}}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:10}},grid:{color:'rgba(0,0,0,.06)'}},y:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}}}}});
+
+  // Trend charts across weeks
+  if(!weeks||weeks.length<=1)return;
+
+  // ROAS trend: top 5 ads across all weeks
+  const allAdNames=[...new Set(metaData.map(r=>r.ad_name).filter(Boolean))];
+  const topAds=allAdNames.map(name=>{const d=metaData.filter(r=>r.ad_name===name);return{name,avgRoas:d.reduce((s,r)=>s+(+r.roas||0),0)/d.length,totalSpend:d.reduce((s,r)=>s+(+r.spend||0),0)};}).sort((a,b)=>b.totalSpend-a.totalSpend).slice(0,5);
+  const trendColors=['#1D9E75','#2563EB','#7C3AED','#D97706','#DC2626'];
+
+  if(charts['chart-trend']){charts['chart-trend'].destroy();delete charts['chart-trend'];}
+  const c3=document.getElementById('chart-trend');
+  if(c3)charts['chart-trend']=new Chart(c3,{type:'line',data:{labels:weeks,datasets:topAds.map((ad,i)=>({label:ad.name,data:weeks.map(w=>{const rows=metaData.filter(r=>r.kw===w&&r.ad_name===ad.name);return rows.length?+(rows.reduce((s,r)=>s+(+r.roas||0),0)/rows.length).toFixed(2):null;}),borderColor:trendColors[i],backgroundColor:trendColors[i]+'22',tension:0.3,fill:false,pointRadius:5,pointHoverRadius:7,spanGaps:true}))},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#6B7280'}}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}},y:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'},title:{display:true,text:'ROAS',color:'#9CA3AF',font:{size:10}}}}}});
+
+  // Weekly spend chart
+  if(charts['chart-wk-spend']){charts['chart-wk-spend'].destroy();delete charts['chart-wk-spend'];}
+  const c4=document.getElementById('chart-wk-spend');
+  if(c4)charts['chart-wk-spend']=new Chart(c4,{type:'bar',data:{labels:weeks,datasets:[{label:'Spend',data:weeks.map(w=>metaData.filter(r=>r.kw===w).reduce((s,r)=>s+(+r.spend||0),0)),backgroundColor:'rgba(220,38,38,.6)',borderRadius:4},{label:'Revenue',data:weeks.map(w=>metaData.filter(r=>r.kw===w).reduce((s,r)=>s+(+r.revenue||0),0)),backgroundColor:'rgba(5,150,105,.6)',borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#6B7280'}}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}}}}});
+
+  // Weekly ROAS avg chart
+  if(charts['chart-wk-roas']){charts['chart-wk-roas'].destroy();delete charts['chart-wk-roas'];}
+  const c5=document.getElementById('chart-wk-roas');
+  if(c5){
+    const wkRoas=weeks.map(w=>{const d=metaData.filter(r=>r.kw===w&&(+r.spend||0)>0);const sp=d.reduce((s,r)=>s+(+r.spend||0),0);const rv=d.reduce((s,r)=>s+(+r.revenue||0),0);return sp>0?+(rv/sp).toFixed(2):0;});
+    const roasColors=wkRoas.map(v=>v>=2.5?'rgba(5,150,105,.7)':v>=1?'rgba(217,119,6,.7)':'rgba(220,38,38,.7)');
+    charts['chart-wk-roas']=new Chart(c5,{type:'bar',data:{labels:weeks,datasets:[{label:'ROAS Ø',data:wkRoas,backgroundColor:roasColors,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#9CA3AF',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#9CA3AF',font:{size:11}},grid:{color:'rgba(0,0,0,.06)'}}}}});
+  }
 }
 
 /* ── HOOKS v2 ── */
