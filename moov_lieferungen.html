@@ -218,9 +218,10 @@ document.addEventListener('click', function(e) {
   var el = e.target.closest('[data-a]');
   if (!el) return;
   e.stopPropagation();
+  e.preventDefault();
   var action = el.getAttribute('data-a');
   var args = [];
-  try { args = JSON.parse(el.getAttribute('data-args')||'[]'); } catch(ex) {}
+  try { args = JSON.parse(el.getAttribute('data-args')||'[]'); } catch(ex) { console.error('args parse error', ex); }
   dispatch(action, args);
 });
 
@@ -287,7 +288,7 @@ function buildOrder(o) {
         '<span style="color:#D97706;">'+nxt+'</span>'+
       '</div>'+
     '</div>'+
-    '<div style="display:flex;gap:5px;" data-stop="1">'+
+    '<div style="display:flex;gap:5px;">'+
       '<button class="btn bsm"'+da('editOrder',[o.id])+'>Bearbeiten</button>'+
       '<button class="btn bsm bd"'+da('delOrder',[o.id])+'>&#x1F5D1;</button>'+
     '</div>'+
@@ -340,7 +341,7 @@ function buildOrder(o) {
       '<div class="sw">'+
         '<div class="shdr"'+da('toggleSec',[o.id+'_d'])+'>'+
           '<div class="slbl">Teillieferungen ('+o.deliveries.length+')</div>'+
-          '<div style="display:flex;gap:6px;" data-stop="1">'+
+          '<div style="display:flex;gap:6px;">'+
             '<button class="btn bsm bp"'+da('addDel',[o.id])+'>+ Teillieferung</button>'+
           '</div>'+
         '</div>'+
@@ -427,7 +428,7 @@ function buildDel(o, d) {
         '<div>'+chips+'</div>'+
         '<div style="font-family:DM Mono,monospace;font-size:12px;font-weight:600;color:#111827;">'+fa(tot,cur)+'</div>'+
       '</div>'+
-      '<div style="display:flex;gap:3px;padding-right:10px;" data-stop="1">'+
+      '<div style="display:flex;gap:3px;padding-right:10px;">'+
         '<button class="ib"'+da('editDel',[o.id,d.id])+'>&#x270F;</button>'+
         '<button class="ib"'+da('splitDel',[o.id,d.id])+' title="Aufteilen">&#x2702;</button>'+
         '<button class="ib"'+da('addPay',[o.id,d.id])+'>+</button>'+
@@ -495,10 +496,7 @@ function resetToDefaults(){if(!confirm('Alle Daten zuruecksetzen?'))return;local
 
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeModal();});
 
-// Stop propagation for elements with data-stop
-document.addEventListener('click',function(e){
-  if(e.target.closest('[data-stop]')) e.stopPropagation();
-},true);
+// data-stop handled in dispatcher
 
 loadState();
 render();
