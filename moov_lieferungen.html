@@ -192,48 +192,40 @@ function loadState() {
 
 function sv() { try { localStorage.setItem(SAVE_KEY,JSON.stringify(ST)); } catch(e) {} }
 
-// ---- INDEXEDDB FOR FILE STORAGE ----
-var _DB = null;
-function openDB() {
-  return new Promise(function(res, rej) {
-    if (_DB) { res(_DB); return; }
-    var r = indexedDB.open('moov_docs_v1', 1);
-    r.onupgradeneeded = function(e) {
-      var db = e.target.result;
-      if (!db.objectStoreNames.contains('docs')) {
-        db.createObjectStore('docs', {keyPath:'id'});
-      }
-    };
-    r.onsuccess = function(e) { _DB = e.target.result; res(_DB); };
-    r.onerror = function(e) { rej(e); };
-  });
+// ---- FILE STORAGE (base64 in localStorage) ----
+var DOC_KEY = 'moov_docs_files';
+
+function docStore() {
+  try { return JSON.parse(localStorage.getItem(DOC_KEY) || '{}'); } catch(e) { return {}; }
+}
+function docStoreSave(store) {
+  try { localStorage.setItem(DOC_KEY, JSON.stringify(store)); } catch(e) {
+    alert('Speicher voll! Bitte einige Dokumente loeschen um Platz zu schaffen.');
+  }
 }
 function dbSaveFile(rec) {
-  return openDB().then(function(db) {
-    return new Promise(function(res, rej) {
-      var tx = db.transaction(['docs'], 'readwrite');
-      tx.objectStore('docs').put(rec).onsuccess = function() { res(); };
-      tx.onerror = function(e) { rej(e); };
-    });
+  return new Promise(function(res, rej) {
+    try {
+      var store = docStore();
+      store[rec.id] = {data: rec.data, mimeType: rec.mimeType};
+      docStoreSave(store);
+      res();
+    } catch(e) { rej(e); }
   });
 }
 function dbLoadFile(id) {
-  return openDB().then(function(db) {
-    return new Promise(function(res, rej) {
-      var tx = db.transaction(['docs'], 'readonly');
-      var req = tx.objectStore('docs').get(id);
-      req.onsuccess = function() { res(req.result); };
-      req.onerror = function(e) { rej(e); };
-    });
+  return new Promise(function(res) {
+    var store = docStore();
+    var rec = store[id];
+    res(rec ? {id: id, data: rec.data, mimeType: rec.mimeType} : null);
   });
 }
 function dbDeleteFile(id) {
-  return openDB().then(function(db) {
-    return new Promise(function(res, rej) {
-      var tx = db.transaction(['docs'], 'readwrite');
-      tx.objectStore('docs').delete(id).onsuccess = function() { res(); };
-      tx.onerror = function(e) { rej(e); };
-    });
+  return new Promise(function(res) {
+    var store = docStore();
+    delete store[id];
+    docStoreSave(store);
+    res();
   });
 }
 
@@ -247,11 +239,18 @@ function fmtSize(b) { return b>1024*1024 ? (b/1024/1024).toFixed(1)+' MB' : b>10
 function viewDoc(attId) {
   dbLoadFile(attId).then(function(att) {
     if (!att) { alert('Datei nicht gefunden.'); return; }
-    var blob = new Blob([att.data], {type: att.mimeType||'application/pdf'});
+    // att.data is base64 string
+    var b64 = att.data;
+    var mime = att.mimeType || 'application/pdf';
+    // Convert base64 to blob
+    var byteStr = atob(b64);
+    var arr = new Uint8Array(byteStr.length);
+    for (var i = 0; i < byteStr.length; i++) arr[i] = byteStr.charCodeAt(i);
+    var blob = new Blob([arr], {type: mime});
     var url = URL.createObjectURL(blob);
     window.open(url, '_blank');
     setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
-  }).catch(function(e) { alert('Fehler beim Laden: '+e.message); });
+  }).catch(function(e) { alert('Fehler: '+e.message); });
 }
 
 // Open add document modal
@@ -326,6 +325,9 @@ function saveDocFile() {
       var attId = uid();
       var nameEl = document.getElementById('doc-name');
       var typeEl = document.getElementById('doc-type');
+      // e.target.result is a data URL like "data:application/pdf;base64,..."
+      var dataUrl = e.target.result;
+      var b64 = dataUrl.split(',')[1]; // extract only the base64 part
       var meta = {
         id: attId,
         name: (nameEl && nameEl.value.trim()) || pending.file.name,
@@ -334,8 +336,7 @@ function saveDocFile() {
         size: pending.file.size,
         mimeType: pending.file.type || 'application/pdf'
       };
-      dbSaveFile({id: attId, data: e.target.result, mimeType: meta.mimeType}).then(function() {
-        // Add metadata to delivery
+      dbSaveFile({id: attId, data: b64, mimeType: meta.mimeType}).then(function() {
         var d = findDelivery(pending.oid, pending.did);
         if (d) {
           if (!d.attachments) d.attachments = [];
@@ -343,9 +344,9 @@ function saveDocFile() {
         }
         window._pendingDocFile = null;
         res(meta);
-      }).catch(rej);
+      }).catch(function(e2) { rej(new Error('Speichern fehlgeschlagen: ' + e2.message)); });
     };
-    reader.readAsArrayBuffer(pending.file);
+    reader.readAsDataURL(pending.file);
   });
 }
 
