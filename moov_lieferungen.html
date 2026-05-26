@@ -65,6 +65,27 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
 .mbtns{display:flex;gap:7px;margin-top:14px;}
 .mbtns .btn{flex:1;justify-content:center;padding:9px;}
 .mdel{margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);}
+
+/* Documents */
+.docs-sec{margin-top:12px;padding-top:12px;border-top:1px solid var(--bd);}
+.docs-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.docs-title{font-family:'DM Mono',monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);}
+.doc-item{display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--sur);border:1px solid var(--bd);border-radius:9px;margin-bottom:5px;transition:all .13s;}
+.doc-item:hover{border-color:var(--bds);box-shadow:0 1px 3px rgba(0,0,0,.06);}
+.doc-icon{font-size:20px;flex-shrink:0;}
+.doc-info{flex:1;min-width:0;}
+.doc-name{font-size:13px;font-weight:500;color:var(--tx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.doc-meta{font-size:11px;color:var(--tx3);margin-top:1px;}
+.doc-type{font-family:'DM Mono',monospace;font-size:10px;padding:1px 7px;border-radius:20px;font-weight:500;}
+.dt-r{background:#DBEAFE;color:#2563EB;}
+.dt-z{background:#FEF3C7;color:#D97706;}
+.dt-l{background:#D1FAE5;color:#059669;}
+.dt-s{background:var(--sur2);color:var(--tx3);}
+.doc-actions{display:flex;gap:4px;flex-shrink:0;}
+.drop-zone{border:2px dashed var(--bd);border-radius:11px;padding:24px;text-align:center;cursor:pointer;transition:all .15s;background:var(--sur2);}
+.drop-zone:hover,.drop-zone.drag-active{border-color:var(--teal);background:var(--td);}
+.drop-zone-lbl{font-size:14px;font-weight:500;color:var(--tx);margin-bottom:3px;}
+.drop-zone-sub{font-size:12px;color:var(--tx2);}
 </style>
 </head>
 <body>
@@ -170,6 +191,174 @@ function loadState() {
 }
 
 function sv() { try { localStorage.setItem(SAVE_KEY,JSON.stringify(ST)); } catch(e) {} }
+
+// ---- INDEXEDDB FOR FILE STORAGE ----
+var _DB = null;
+function openDB() {
+  return new Promise(function(res, rej) {
+    if (_DB) { res(_DB); return; }
+    var r = indexedDB.open('moov_docs_v1', 1);
+    r.onupgradeneeded = function(e) {
+      var db = e.target.result;
+      if (!db.objectStoreNames.contains('docs')) {
+        db.createObjectStore('docs', {keyPath:'id'});
+      }
+    };
+    r.onsuccess = function(e) { _DB = e.target.result; res(_DB); };
+    r.onerror = function(e) { rej(e); };
+  });
+}
+function dbSaveFile(rec) {
+  return openDB().then(function(db) {
+    return new Promise(function(res, rej) {
+      var tx = db.transaction(['docs'], 'readwrite');
+      tx.objectStore('docs').put(rec).onsuccess = function() { res(); };
+      tx.onerror = function(e) { rej(e); };
+    });
+  });
+}
+function dbLoadFile(id) {
+  return openDB().then(function(db) {
+    return new Promise(function(res, rej) {
+      var tx = db.transaction(['docs'], 'readonly');
+      var req = tx.objectStore('docs').get(id);
+      req.onsuccess = function() { res(req.result); };
+      req.onerror = function(e) { rej(e); };
+    });
+  });
+}
+function dbDeleteFile(id) {
+  return openDB().then(function(db) {
+    return new Promise(function(res, rej) {
+      var tx = db.transaction(['docs'], 'readwrite');
+      tx.objectStore('docs').delete(id).onsuccess = function() { res(); };
+      tx.onerror = function(e) { rej(e); };
+    });
+  });
+}
+
+// Doc type helpers
+function docTypeLabel(t) { return {rechnung:'Rechnung',zoll:'Zollkosten',lieferschein:'Lieferschein',sonstiges:'Sonstiges'}[t]||'Dokument'; }
+function docTypeClass(t) { return {rechnung:'dt-r',zoll:'dt-z',lieferschein:'dt-l',sonstiges:'dt-s'}[t]||'dt-s'; }
+function docIcon(mime) { return (mime&&mime.includes('pdf')) ? '📄' : '📎'; }
+function fmtSize(b) { return b>1024*1024 ? (b/1024/1024).toFixed(1)+' MB' : b>1024 ? (b/1024).toFixed(0)+' KB' : b+' B'; }
+
+// Open document in new tab
+function viewDoc(attId) {
+  dbLoadFile(attId).then(function(att) {
+    if (!att) { alert('Datei nicht gefunden.'); return; }
+    var blob = new Blob([att.data], {type: att.mimeType||'application/pdf'});
+    var url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+    setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+  }).catch(function(e) { alert('Fehler beim Laden: '+e.message); });
+}
+
+// Open add document modal
+function openAddDoc(oid, did) {
+  // Build body without quote issues using DOM
+  var body = document.createElement('div');
+  body.innerHTML =
+    '<div class="mf"><label class="ml">Dokumenttyp</label>' +
+    '<select class="mi" id="doc-type">' +
+    '<option value="rechnung">Rechnung</option>' +
+    '<option value="zoll">Zollkosten</option>' +
+    '<option value="lieferschein">Lieferschein</option>' +
+    '<option value="sonstiges">Sonstiges</option>' +
+    '</select></div>' +
+    '<div class="mf"><label class="ml">Name (optional)</label>' +
+    '<input class="mi" id="doc-name" placeholder="z.B. Rechnung PF0037.03"></div>' +
+    '<div class="mf"><label class="ml">Datei (PDF, max. 10 MB)</label>' +
+    '<div class="drop-zone" id="doc-drop">' +
+    '<div class="drop-zone-lbl">&#x1F4C4; PDF hier ablegen</div>' +
+    '<div class="drop-zone-sub">oder klicken zum Auswählen</div>' +
+    '</div>' +
+    '<input type="file" id="doc-file-input" accept=".pdf,application/pdf" style="display:none">' +
+    '</div>' +
+    '<div id="doc-upload-status"></div>';
+  openM('Dokument hinzufügen', body.innerHTML, {t:'add-doc', oid:oid, did:did});
+  // Wire up events after modal is in DOM
+  setTimeout(function() {
+    var drop = document.getElementById('doc-drop');
+    var input = document.getElementById('doc-file-input');
+    if (drop) {
+      drop.addEventListener('click', function() { if(input) input.click(); });
+      drop.addEventListener('dragover', function(e) { e.preventDefault(); drop.classList.add('drag-active'); });
+      drop.addEventListener('dragleave', function() { drop.classList.remove('drag-active'); });
+      drop.addEventListener('drop', function(e) {
+        e.preventDefault(); drop.classList.remove('drag-active');
+        var f = e.dataTransfer.files[0]; if(f) processDocFile(f, oid, did);
+      });
+    }
+    if (input) {
+      input.addEventListener('change', function() {
+        var f = input.files[0]; if(f) processDocFile(f, oid, did); input.value='';
+      });
+    }
+    var saveBtn = document.getElementById('modal') && document.getElementById('modal').querySelector('.btn-p');
+    if (saveBtn) { saveBtn.textContent = 'Warte auf Datei...'; saveBtn.disabled = true; saveBtn.style.opacity = '0.5'; }
+  }, 50);
+}
+
+function processDocFile(file, oid, did) {
+  if (file.size > 10 * 1024 * 1024) {
+    var s = document.getElementById('doc-upload-status');
+    if (s) s.innerHTML = '<div style="color:var(--red);font-size:12px;margin-top:8px;">Datei zu gross (max. 10 MB)</div>';
+    return;
+  }
+  var nameEl = document.getElementById('doc-name');
+  if (nameEl && !nameEl.value) nameEl.value = file.name.replace(/\.pdf$/i, '');
+  var status = document.getElementById('doc-upload-status');
+  if (status) status.innerHTML = '<div style="font-size:12px;color:var(--teal);margin-top:8px;">&#x2714; ' + esc(file.name) + ' (' + fmtSize(file.size) + ')</div>';
+  var saveBtn = document.getElementById('modal') && document.getElementById('modal').querySelector('.btn-p');
+  if (saveBtn) { saveBtn.textContent = 'Speichern'; saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
+  var drop = document.getElementById('doc-drop');
+  if (drop) drop.innerHTML = '<div class="drop-zone-lbl">&#x2714; ' + esc(file.name) + '</div><div class="drop-zone-sub">' + fmtSize(file.size) + '</div>';
+  window._pendingDocFile = {file: file, oid: oid, did: did};
+}
+
+function saveDocFile() {
+  var pending = window._pendingDocFile;
+  if (!pending) return Promise.resolve();
+  return new Promise(function(res, rej) {
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      var attId = uid();
+      var nameEl = document.getElementById('doc-name');
+      var typeEl = document.getElementById('doc-type');
+      var meta = {
+        id: attId,
+        name: (nameEl && nameEl.value.trim()) || pending.file.name,
+        docType: typeEl ? typeEl.value : 'sonstiges',
+        date: todayStr(),
+        size: pending.file.size,
+        mimeType: pending.file.type || 'application/pdf'
+      };
+      dbSaveFile({id: attId, data: e.target.result, mimeType: meta.mimeType}).then(function() {
+        // Add metadata to delivery
+        var d = findDelivery(pending.oid, pending.did);
+        if (d) {
+          if (!d.attachments) d.attachments = [];
+          d.attachments.push(meta);
+        }
+        window._pendingDocFile = null;
+        res(meta);
+      }).catch(rej);
+    };
+    reader.readAsArrayBuffer(pending.file);
+  });
+}
+
+function deleteDoc(attId, oid, did) {
+  if (!confirm('Dokument löschen?')) return;
+  dbDeleteFile(attId);
+  var d = findDelivery(oid, did);
+  if (d && d.attachments) {
+    d.attachments = d.attachments.filter(function(a) { return a.id !== attId; });
+  }
+  sv(); render();
+}
+
 function uid() { return 'x'+Date.now()+Math.floor(Math.random()*9999); }
 function esc(t) { return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 function fd(d) { if(!d)return'-'; var p=d.split('-'); return p.length===3?p[2]+'.'+p[1]+'.'+p[0]:d; }
@@ -248,7 +437,10 @@ function dispatch(action, args) {
     'addPay':    function(a) { openAddPay(a[0],a[1]); },
     'editPay':   function(a) { openEditPay(a[0],a[1],a[2]); },
     'addFlav':   function(a) { openAddFlav(a[0],a[1]); },
-    'editFlavs': function(a) { openEditFlavs(a[0],a[1]); }
+    'editFlavs': function(a) { openEditFlavs(a[0],a[1]); },
+    'openAddDoc': function(a) { openAddDoc(a[0],a[1]); },
+    'viewDoc':    function(a) { viewDoc(a[0]); },
+    'deleteDoc':  function(a) { deleteDoc(a[0],a[1],a[2]); }
   };
   if (fns[action]) fns[action](args);
 }
@@ -357,6 +549,32 @@ function buildOrder(o) {
   '</div>';
 }
 
+function buildDocSection(o, d) {
+  var atts = d.attachments || [];
+  var addBtn = '<button class="btn bsm bp"' + da('openAddDoc',[o.id,d.id]) + ' style="font-size:11px;padding:4px 11px;">&#x1F4CE; Dokument</button>';
+  if (!atts.length) {
+    return '<div class="docs-sec"><div class="docs-hdr"><div class="docs-title">Dokumente</div>' + addBtn + '</div>' +
+      '<div style="font-size:12px;color:var(--tx3);padding:6px 0;">Noch keine Dokumente angehängt.</div></div>';
+  }
+  var items = atts.map(function(a) {
+    return '<div class="doc-item">' +
+      '<span class="doc-icon">' + docIcon(a.mimeType) + '</span>' +
+      '<div class="doc-info">' +
+        '<div class="doc-name">' + esc(a.name) + '</div>' +
+        '<div class="doc-meta"><span class="doc-type ' + docTypeClass(a.docType) + '">' + docTypeLabel(a.docType) + '</span>' +
+          (a.size ? ' &middot; ' + fmtSize(a.size) : '') +
+          (a.date ? ' &middot; ' + fmtDate(a.date) : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="doc-actions">' +
+        '<button class="ib" title="Oeffnen"' + da('viewDoc',[a.id]) + '>&#x1F441;</button>' +
+        '<button class="ib bd" title="Loeschen"' + da('deleteDoc',[a.id,o.id,d.id]) + '>&#x2715;</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+  return '<div class="docs-sec"><div class="docs-hdr"><div class="docs-title">Dokumente (' + atts.length + ')</div>' + addBtn + '</div>' + items + '</div>';
+}
+
 function buildDel(o, d) {
   var pays=d.payments||[],tot=0;
   pays.forEach(function(p){tot+=parseFloat(p.amount)||0;});
@@ -438,7 +656,8 @@ function buildDel(o, d) {
     '<div style="border-top:1px solid #E8E8E6;padding:12px 13px 13px;background:#F7F7F5;display:'+(isO?'block':'none')+';">'+
       boxH+costsH+flavH+
       (prows?'<div style="overflow-x:auto;margin-top:4px;"><table class="pt"><thead><tr><th>Ref.</th><th>Beschreibung</th><th>Faellig</th><th>Status</th><th style="text-align:right">Betrag</th><th></th></tr></thead><tbody>'+prows+'</tbody></table></div>':'')+
-      '<div style="display:flex;gap:5px;margin-top:10px;padding-top:10px;border-top:1px solid #E8E8E6;flex-wrap:wrap;">'+
+      buildDocSection(o, d) +
+      '<div style="display:flex;gap:5px;margin-top:12px;padding-top:10px;border-top:1px solid #E8E8E6;flex-wrap:wrap;">'+
         '<button class="btn bsm"'+da('addPay',[o.id,d.id])+'>+ Zahlung</button>'+
         '<button class="btn bsm"'+da('addFlav',[o.id,d.id])+'>+ Geschmack</button>'+
         '<button class="btn bsm bd" style="margin-left:auto;"'+da('delDel',[o.id,d.id])+'>Loeschen</button>'+
@@ -489,6 +708,16 @@ function modalDelete(){
   if(t==='edit-order'){if(!confirm('Bestellung loeschen?'))return;ST.orders=ST.orders.filter(function(x){return x.id!==CTX.oid;});}
   else if(t==='edit-del'){if(!confirm('Teillieferung loeschen?'))return;var o=fO(CTX.oid);if(o)o.deliveries=o.deliveries.filter(function(x){return x.id!==CTX.did;});}
   else if(t==='edit-pay'){if(!confirm('Zahlung loeschen?'))return;var d=fD(CTX.oid,CTX.did);if(d)d.payments=d.payments.filter(function(x){return x.id!==CTX.pid;});}
+  if (t === 'add-doc') {
+    var saveBtn = document.getElementById('modal') && document.getElementById('modal').querySelector('.btn-p');
+    if (saveBtn) { saveBtn.textContent = 'Speichern...'; saveBtn.disabled = true; }
+    saveDocFile().then(function() {
+      sv(); closeModal(); render();
+    }).catch(function(e) {
+      alert('Fehler: ' + e.message);
+    });
+    return;
+  }
   closeModal();render();
 }
 
