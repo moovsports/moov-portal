@@ -395,7 +395,11 @@ function totals(o) {
     });
   });
   up.sort(function(a,b){return a.dueDate.localeCompare(b.dueDate);});
-  return {tot:tot,paid:paid,open:tot-paid,pct:tot>0?paid/tot*100:0,od:od,nxt:up[0]||null};
+  return {tot:tot,paid:paid,od:od,nxt:up[0]||null,
+    hasUnpaid:o.deliveries.some(function(d){return(parseFloat(d.netPrice)||0)>0&&(!d.payments||d.payments.length===0);}),
+    open:(function(){var v=tot-paid;o.deliveries.forEach(function(d){if((parseFloat(d.netPrice)||0)>0&&(!d.payments||d.payments.length===0))v+=parseFloat(d.netPrice)||0;});return v;})(),
+    pct:(function(){var v=tot-paid;o.deliveries.forEach(function(d){if((parseFloat(d.netPrice)||0)>0&&(!d.payments||d.payments.length===0))v+=parseFloat(d.netPrice)||0;});var vt=paid+v;return vt>0?paid/vt*100:0;})()
+  };
 }
 
 function fO(id){for(var i=0;i<ST.orders.length;i++)if(ST.orders[i].id===id)return ST.orders[i];return null;}
@@ -463,9 +467,12 @@ function buildOrder(o) {
   var dOpen=!!SEC[o.id+'_d'];
   var pOpen=!!SEC[o.id+'_p'];
 
-  var sChip=t.od.length?chip('cr2',t.od.length+' Ueberfaellig'):t.pct>=100?chip('cg2','Vollst. bezahlt'):'';
+  var sChip='';
+  if(t.od.length)sChip=chip('cr2',t.od.length+' Ueberfaellig');
+  else if(t.pct>=100&&!t.hasUnpaid&&t.paid>0)sChip=chip('cg2','Vollst. bezahlt');
+  else if(t.hasUnpaid||t.open>0)sChip=chip('ca2','Zahlung offen');
   var nxt=t.nxt?fa(t.nxt.amount,cur)+' am '+fd(t.nxt.dueDate):'Keine offen';
-  var bc=t.od.length?'#DC2626':'#059669';
+  var bc=t.od.length?'#DC2626':(t.pct>=100&&!t.hasUnpaid)?'#059669':'#D97706';
 
   var hdr='<div'+da('toggleSec',[o.id+'_o'])+' style="display:flex;align-items:center;gap:12px;cursor:pointer;padding:16px 18px 10px;">'+
     '<div style="flex:1;">'+
@@ -579,7 +586,7 @@ function buildDel(o, d) {
   var pays=d.payments||[],tot=0;
   pays.forEach(function(p){tot+=parseFloat(p.amount)||0;});
   var od=pays.some(function(p){return gs(p)==='overdue';});
-  var ap=pays.length>0&&pays.every(function(p){return!!p.paidDate;});
+  var ap=pays.length>0&&pays.every(function(p){return!!p.paidDate;})&&!((parseFloat(d.netPrice)||0)>0&&pays.length===0);
   var isO=!!OPEN[d.id];
   var stk=parseInt(d.stk_ordered)||0,rec=parseInt(d.stk_received)||0;
   var pct=stk>0?Math.min(rec/stk*100,100):0;
