@@ -255,9 +255,8 @@ function viewDoc(attId) {
 
 // Open add document modal
 function openAddDoc(oid, did) {
-  // Build body without quote issues using DOM
-  var body = document.createElement('div');
-  body.innerHTML =
+  // Simple approach: open a modal with a direct file input
+  var body =
     '<div class="mf"><label class="ml">Dokumenttyp</label>' +
     '<select class="mi" id="doc-type">' +
     '<option value="rechnung">Rechnung</option>' +
@@ -267,88 +266,73 @@ function openAddDoc(oid, did) {
     '</select></div>' +
     '<div class="mf"><label class="ml">Name (optional)</label>' +
     '<input class="mi" id="doc-name" placeholder="z.B. Rechnung PF0037.03"></div>' +
-    '<div class="mf"><label class="ml">Datei (PDF, max. 10 MB)</label>' +
-    '<div class="drop-zone" id="doc-drop">' +
-    '<div class="drop-zone-lbl">&#x1F4C4; PDF hier ablegen</div>' +
-    '<div class="drop-zone-sub">oder klicken zum Auswählen</div>' +
+    '<div class="mf"><label class="ml">PDF-Datei ausw\u00e4hlen</label>' +
+    '<input class="mi" type="file" id="doc-file" accept=".pdf,application/pdf,image/*" ' +
+    'style="padding:8px;cursor:pointer;" onchange="onDocFileSelected(this,\''+oid+'\',\''+did+'\')">' +
     '</div>' +
-    '<input type="file" id="doc-file-input" accept=".pdf,application/pdf" style="display:none">' +
-    '</div>' +
-    '<div id="doc-upload-status"></div>';
-  openM('Dokument hinzufügen', body.innerHTML, {t:'add-doc', oid:oid, did:did});
-  // Wire up events after modal is in DOM
-  setTimeout(function() {
-    var drop = document.getElementById('doc-drop');
-    var input = document.getElementById('doc-file-input');
-    if (drop) {
-      drop.addEventListener('click', function() { if(input) input.click(); });
-      drop.addEventListener('dragover', function(e) { e.preventDefault(); drop.classList.add('drag-active'); });
-      drop.addEventListener('dragleave', function() { drop.classList.remove('drag-active'); });
-      drop.addEventListener('drop', function(e) {
-        e.preventDefault(); drop.classList.remove('drag-active');
-        var f = e.dataTransfer.files[0]; if(f) processDocFile(f, oid, did);
-      });
-    }
-    if (input) {
-      input.addEventListener('change', function() {
-        var f = input.files[0]; if(f) processDocFile(f, oid, did); input.value='';
-      });
-    }
-    var saveBtn = document.getElementById('modal') && document.getElementById('modal').querySelector('.btn-p');
-    if (saveBtn) { saveBtn.textContent = 'Warte auf Datei...'; saveBtn.disabled = true; saveBtn.style.opacity = '0.5'; }
-  }, 50);
+    '<div id="doc-status" style="font-size:12px;margin-top:6px;color:var(--tx2);"></div>';
+  openM('Dokument hinzuf\u00fcgen', body, {t:'add-doc-noop', oid:oid, did:did});
 }
 
-function processDocFile(file, oid, did) {
-  if (file.size > 10 * 1024 * 1024) {
-    var s = document.getElementById('doc-upload-status');
-    if (s) s.innerHTML = '<div style="color:var(--red);font-size:12px;margin-top:8px;">Datei zu gross (max. 10 MB)</div>';
+function onDocFileSelected(input, oid, did) {
+  var file = input.files[0];
+  if (!file) return;
+  if (file.size > 8 * 1024 * 1024) {
+    document.getElementById('doc-status').innerHTML =
+      '<span style="color:var(--red);">\u26a0\ufe0f Datei zu gross (max. 8 MB)</span>';
     return;
   }
+  var status = document.getElementById('doc-status');
+  if (status) status.innerHTML = '\u23f3 Wird gelesen...';
   var nameEl = document.getElementById('doc-name');
-  if (nameEl && !nameEl.value) nameEl.value = file.name.replace(/\.pdf$/i, '');
-  var status = document.getElementById('doc-upload-status');
-  if (status) status.innerHTML = '<div style="font-size:12px;color:var(--teal);margin-top:8px;">&#x2714; ' + esc(file.name) + ' (' + fmtSize(file.size) + ')</div>';
-  var saveBtn = document.getElementById('modal') && document.getElementById('modal').querySelector('.btn-p');
-  if (saveBtn) { saveBtn.textContent = 'Speichern'; saveBtn.disabled = false; saveBtn.style.opacity = '1'; }
-  var drop = document.getElementById('doc-drop');
-  if (drop) drop.innerHTML = '<div class="drop-zone-lbl">&#x2714; ' + esc(file.name) + '</div><div class="drop-zone-sub">' + fmtSize(file.size) + '</div>';
-  window._pendingDocFile = {file: file, oid: oid, did: did};
+  if (nameEl && !nameEl.value.trim()) {
+    nameEl.value = file.name.replace(/\.pdf$/i, '').replace(/\.png$/i, '').replace(/\.jpg$/i, '');
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    var dataUrl = e.target.result;
+    var b64 = dataUrl.split(',')[1];
+    var attId = uid();
+    var typeEl = document.getElementById('doc-type');
+    var meta = {
+      id: attId,
+      name: (nameEl && nameEl.value.trim()) || file.name,
+      docType: typeEl ? typeEl.value : 'sonstiges',
+      date: todayStr(),
+      size: file.size,
+      mimeType: file.type || 'application/pdf'
+    };
+    // Save file data
+    try {
+      var store = docStore();
+      store[attId] = {data: b64, mimeType: meta.mimeType};
+      docStoreSave(store);
+    } catch(err) {
+      if (status) status.innerHTML = '<span style="color:var(--red);">\u274c Speicherfehler: ' + err.message + '</span>';
+      return;
+    }
+    // Save metadata to delivery
+    var d = findDelivery(oid, did);
+    if (!d) {
+      if (status) status.innerHTML = '<span style="color:var(--red);">\u274c Lieferung nicht gefunden</span>';
+      return;
+    }
+    if (!d.attachments) d.attachments = [];
+    d.attachments.push(meta);
+    sv();
+    if (status) status.innerHTML = '<span style="color:var(--green);">\u2714 ' + esc(meta.name) + ' gespeichert!</span>';
+    // Update the save button to "Schliessen"
+    var saveBtn = document.getElementById('modal') && document.getElementById('modal').querySelector('.btn-p');
+    if (saveBtn) { saveBtn.textContent = 'Schliessen'; saveBtn.onclick = function(){ closeModal(); render(); }; }
+  };
+  reader.onerror = function() {
+    if (status) status.innerHTML = '<span style="color:var(--red);">\u274c Fehler beim Lesen</span>';
+  };
+  reader.readAsDataURL(file);
 }
 
-function saveDocFile() {
-  var pending = window._pendingDocFile;
-  if (!pending) return Promise.resolve();
-  return new Promise(function(res, rej) {
-    var reader = new FileReader();
-    reader.onload = function(e) {
-      var attId = uid();
-      var nameEl = document.getElementById('doc-name');
-      var typeEl = document.getElementById('doc-type');
-      // e.target.result is a data URL like "data:application/pdf;base64,..."
-      var dataUrl = e.target.result;
-      var b64 = dataUrl.split(',')[1]; // extract only the base64 part
-      var meta = {
-        id: attId,
-        name: (nameEl && nameEl.value.trim()) || pending.file.name,
-        docType: typeEl ? typeEl.value : 'sonstiges',
-        date: todayStr(),
-        size: pending.file.size,
-        mimeType: pending.file.type || 'application/pdf'
-      };
-      dbSaveFile({id: attId, data: b64, mimeType: meta.mimeType}).then(function() {
-        var d = findDelivery(pending.oid, pending.did);
-        if (d) {
-          if (!d.attachments) d.attachments = [];
-          d.attachments.push(meta);
-        }
-        window._pendingDocFile = null;
-        res(meta);
-      }).catch(function(e2) { rej(new Error('Speichern fehlgeschlagen: ' + e2.message)); });
-    };
-    reader.readAsDataURL(pending.file);
-  });
-}
+function saveDocFile() { return Promise.resolve(); } // kept for modalSave compat
+
 
 function deleteDoc(attId, oid, did) {
   if (!confirm('Dokument löschen?')) return;
