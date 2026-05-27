@@ -278,9 +278,33 @@ select option{background:#fff;}
 .hk-act-btn.red{color:var(--lo-c);border-color:rgba(220,38,38,.2);background:var(--lo-bg);}
 .hk-archived-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 0;color:var(--tx2);font-size:13px;font-weight:500;border-top:1px solid var(--bd);margin-top:8px;user-select:none;}
 .hk-archived-toggle:hover{color:var(--tx);}
+
+/* PASSWORD GATE */
+#pw-gate{position:fixed;inset:0;background:#F7F7F5;display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;}
+.pw-card{background:#fff;border:1px solid #E8E8E6;border-radius:20px;box-shadow:0 4px 24px rgba(0,0,0,.08);padding:40px;width:100%;max-width:400px;text-align:center;}
+.pw-logo{font-family:'Inter',sans-serif;font-size:22px;font-weight:800;color:#1D9E75;letter-spacing:.08em;text-transform:uppercase;margin-bottom:4px;}
+.pw-title{font-size:18px;font-weight:700;color:#111827;margin-bottom:6px;letter-spacing:-.02em;}
+.pw-sub{font-size:13px;color:#6B7280;margin-bottom:24px;}
+.pw-input{width:100%;font-family:'Inter',sans-serif;font-size:16px;color:#111827;background:#F2F2F0;border:1.5px solid #E8E8E6;border-radius:10px;padding:12px 14px;outline:none;text-align:center;letter-spacing:.15em;transition:border-color .15s;margin-bottom:12px;}
+.pw-input:focus{border-color:#1D9E75;background:#fff;}
+.pw-btn{width:100%;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;padding:13px;border-radius:10px;background:#1D9E75;color:#fff;border:none;cursor:pointer;transition:all .15s;}
+.pw-btn:hover{background:#168a64;transform:translateY(-1px);}
+.pw-err{font-size:12px;color:#DC2626;margin-top:8px;min-height:18px;}
 </style>
 </head>
 <body>
+
+<div id="pw-gate">
+  <div class="pw-card">
+    <div class="pw-logo">MOOV</div>
+    <div class="pw-title">Portal</div>
+    <div class="pw-sub">Passwort eingeben um fortzufahren</div>
+    <input class="pw-input" id="pw-input" type="password" placeholder="••••••••" autocomplete="current-password">
+    <button class="pw-btn" id="pw-btn" onclick="checkPassword()">Einloggen</button>
+    <div class="pw-err" id="pw-err"></div>
+  </div>
+</div>
+
 
 <!-- SETUP -->
 <div id="setup">
@@ -736,6 +760,9 @@ function roasCls(r){return r>=2.5?'roas-g':r>=1?'roas-a':'roas-r';}
 function fmtNum(n){return(+n||0).toLocaleString('de-CH');}
 
 function renderPerformance(){
+  // Cleanup any leftover modal overlay
+  var old = document.getElementById('perf-modal');
+  if(old) old.remove();
   // Group by KW
   const weeks=getWeeks();
   const curKW=window.selectedKW||(weeks.length?weeks[weeks.length-1]:'');
@@ -833,8 +860,12 @@ function renderPerformance(){
     </div>`;
   }
 
-  document.getElementById('perf-content').innerHTML=html;
-  setTimeout(()=>renderPerfCharts(sorted, weeks),50);
+  try {
+    document.getElementById('perf-content').innerHTML=html;
+    setTimeout(()=>{ try{ renderPerfCharts(sorted, weeks); }catch(e){ console.error('Chart error:',e); }},50);
+  } catch(e) {
+    document.getElementById('perf-content').innerHTML='<div style="padding:20px;color:red;font-family:monospace;">Fehler: '+e.message+'</div>';
+  }
 }
 
 function getWeeks(){
@@ -1201,6 +1232,75 @@ function showToast(msg){
   const key=localStorage.getItem('sb_key');
   if(url&&key){initSB(url,key);startApp();}
 })();
+
+// ── PASSWORD GATE ──
+(function() {
+  var PW_KEY = 'moov_auth_v1';
+  var VALID_HASH = '71127895370ed7dc283b83efcd93cf2e9d537b1c6377cafccd8c94bc12ce24de'; // placeholder
+
+  async function hashPassword(pw) {
+    var enc = new TextEncoder().encode(pw + 'moov_salt_2026');
+    var buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(function(b) { return b.toString(16).padStart(2,'0'); }).join('');
+  }
+
+  function isAuthed() {
+    try {
+      var stored = sessionStorage.getItem(PW_KEY);
+      return stored === 'authenticated';
+    } catch(e) { return false; }
+  }
+
+  function showGate() {
+    var gate = document.getElementById('pw-gate');
+    if (gate) gate.style.display = 'flex';
+    setTimeout(function() {
+      var inp = document.getElementById('pw-input');
+      if (inp) inp.focus();
+    }, 100);
+  }
+
+  function hideGate() {
+    var gate = document.getElementById('pw-gate');
+    if (gate) {
+      gate.style.opacity = '0';
+      gate.style.transition = 'opacity .3s';
+      setTimeout(function() { gate.style.display = 'none'; }, 300);
+    }
+  }
+
+  window.checkPassword = async function() {
+    var inp = document.getElementById('pw-input');
+    var err = document.getElementById('pw-err');
+    var pw = inp ? inp.value : '';
+    if (!pw) return;
+    var btn = document.getElementById('pw-btn');
+    if (btn) { btn.textContent = '...'; btn.disabled = true; }
+    var hash = await hashPassword(pw);
+    if (hash === VALID_HASH) {
+      try { sessionStorage.setItem(PW_KEY, 'authenticated'); } catch(e) {}
+      hideGate();
+    } else {
+      if (err) err.textContent = 'Falsches Passwort';
+      if (inp) { inp.value = ''; inp.focus(); inp.style.borderColor = '#DC2626'; setTimeout(function(){inp.style.borderColor='';},1500); }
+      if (btn) { btn.textContent = 'Einloggen'; btn.disabled = false; }
+    }
+  };
+
+  window.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && document.getElementById('pw-gate') && document.getElementById('pw-gate').style.display !== 'none') {
+      checkPassword();
+    }
+  });
+
+  if (!isAuthed()) {
+    showGate();
+  } else {
+    var gate = document.getElementById('pw-gate');
+    if (gate) gate.style.display = 'none';
+  }
+})();
+
 </script>
 </body>
 </html>
