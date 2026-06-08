@@ -547,15 +547,16 @@ function renderOverview(){
       '<div style="font-size:10px;color:var(--tx3);">'+pct.toFixed(1)+'%</div>'+
     '</div>';
   }
-  function section(title,sub,s,nw){
+  function section(title,sub,s,nw,type){
     var pc=function(v){return s.u>0?v/s.u*100:0;};
+    var umsatzSub=type==='year'?(nw>0?'Ø '+cf(s.u/nw)+'/Woche':nw+' Wochen'):nw+' Wochen';
     return '<div style="background:var(--sur);border:1px solid var(--bd);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:var(--sh);">'+
       '<div style="display:flex;align-items:baseline;gap:10px;margin-bottom:14px;flex-wrap:wrap;">'+
         '<div style="font-size:15px;font-weight:700;color:var(--tx);">'+title+'</div>'+
         '<div style="font-size:12px;color:var(--tx3);">'+sub+'</div>'+
       '</div>'+
       '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px;">'+
-        kpi('Umsatz',cf(s.u),nw+' Wochen')+
+        kpi('Umsatz',cf(s.u),umsatzSub)+
         kpi(s.gew>=0?'Gewinn':'Verlust',cf(s.gew),pf(s.marge)+' Nettomarge',s.gew>=0?'var(--green)':'var(--red)')+
         kpi('ROAS',rf(s.roas),cf(s.m)+' Meta',s.roas>=2?'var(--green)':s.roas>=1?'var(--amber)':'var(--red)')+
         kpi('CPA',cf(s.cpa),s.best+' Bestellungen')+
@@ -593,9 +594,10 @@ function renderOverview(){
     '</div>';
   }
   var nYear=yearW.length||withData.length;
+  var allN=withData.length;
   document.getElementById('overview-content').innerHTML=
-    section('Jahr '+curYear,'alle Wochen kumuliert',sYear,nYear)+
-    section('Letzte 4 Wochen',last4.map(function(w){return w.kw;}).join(', '),s4,last4.length)+
+    section('Jahr '+curYear,'alle Wochen kumuliert',sYear,nYear,'year')+
+    section('Letzte 4 Wochen',last4.length===allN?'alle Wochen':last4.map(function(w){return w.kw;}).join(', '),s4,last4.length,'last4')+
     weekTable();
 }
 
