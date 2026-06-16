@@ -465,9 +465,9 @@ function buildFlavorManagerHtml(){
 function renderFlavorTags(){
   return state.flavors.map(function(f,i){
     return '<span class="flavor-tag" style="border-color:'+flavColor(i)+'44;background:'+flavColor(i)+'11">'+
-      '<span style="width:8px;height:8px;border-radius:50%;background:'+flavColor(i)+';display:inline-block"></span>'+
-      esc(f)+
-      '<button class="rm" onclick="removeFlavor('+i+')" title="Entfernen">&#x2715;</button>'+
+      '<span style="width:8px;height:8px;border-radius:50%;background:'+flavColor(i)+';display:inline-block;flex-shrink:0"></span>'+
+      '<span>'+esc(f)+'</span>'+
+      '<button class="rm" onclick="removeFlavor('+i+')" title="Entfernen" style="background:none;border:none;cursor:pointer;color:#9CA3AF;font-size:14px;padding:0 0 0 3px;line-height:1;">&#x2715;</button>'+
     '</span>';
   }).join('');
 }
@@ -483,8 +483,6 @@ function addFlavor(){
   if(tags)tags.innerHTML=renderFlavorTags();
 }
 function removeFlavor(idx){
-  var name=state.flavors[idx];
-  if(!confirm('Geschmack "'+name+'" entfernen?\n(Bestehende Daten bleiben erhalten)'))return;
   state.flavors.splice(idx,1);
   sv();
   var tags=document.getElementById('flav-tags');
