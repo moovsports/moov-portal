@@ -281,7 +281,7 @@ async function loadAll(){
 
 /* ── PIPELINE ── */
 function renderPipeline(){
-  const colsToShow=COLS.filter(c=>['aufnehmen','schneiden','testen','winner','loser'].includes(c.id));
+  const colsToShow=COLS.filter(c=>['skript','aufnehmen','schneiden','testen','winner','loser'].includes(c.id));
   let h='<div id="kanban" style="display:grid;grid-template-columns:repeat('+colsToShow.length+',1fr);gap:12px;padding:20px;min-height:calc(100vh - 40px)">';
   colsToShow.forEach(col=>{
     const colAds=ads.filter(a=>a.status===col.id);
