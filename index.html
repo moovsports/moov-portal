@@ -316,7 +316,7 @@ function renderPipeline(){
           <div class="kcard-lbl" style="margin-top:6px">Script</div>
           <textarea class="kcard-inp" rows="4" onchange="saveAd('${ad.id}','script',this.value)">${esc(ad.script||'')}</textarea>
           <div style="display:flex;gap:5px;margin-top:8px;flex-wrap:wrap">
-            ${ST.map(s=>`<button class="btn bsm${ad.status===s.id?' bsav':''}" onclick="setAdStatus('${ad.id}','${s.id}')">${esc(s.label)}</button>`).join('')}
+            ${ST.map(s=>`<button class="btn bsm${ad.status===s.id?' bsav':''}" onclick="event.stopPropagation();setAdStatus('${ad.id}','${s.id}')">${esc(s.label)}</button>`).join('')}
           </div>
         </div>`;
       }
@@ -357,24 +357,40 @@ async function kbDrop(e, colId){
   if(!dragId)return;
   const ad=ads.find(a=>a.id===dragId);
   if(!ad||ad.status===colId)return;
+  const oldStatus=ad.status;
   ad.status=colId;
-  await dbUpdate('ads',ad.id,{status:colId});
   renderSidebar();
   renderPipeline();
+  try{
+    await dbUpdate('ads',ad.id,{status:colId});
+  }catch(err){
+    ad.status=oldStatus;
+    renderSidebar();renderPipeline();
+    alert('Fehler beim Verschieben: '+err.message);
+  }
 }
 
 function togAd(id){openAdId=openAdId===id?null:id;if(curTab==='pipeline')renderPipeline();else renderAds();}
 async function saveAd(id,field,val){
   const ad=ads.find(a=>a.id===id);if(!ad)return;
   ad[field]=val;
-  await dbUpdate('ads',id,{[field]:val});
+  try{
+    await dbUpdate('ads',id,{[field]:val});
+  }catch(err){
+    console.error('Speicherfehler:',err.message);
+  }
 }
 async function setAdStatus(id,status){
   const ad=ads.find(a=>a.id===id);if(!ad)return;
   ad.status=status;
-  await dbUpdate('ads',id,{status});
   renderSidebar();
   if(curTab==='pipeline')renderPipeline();else renderAds();
+  try{
+    await dbUpdate('ads',id,{status});
+  }catch(err){
+    alert('Status konnte nicht gespeichert werden: '+err.message);
+    ad.status=ad._prevStatus||status;
+  }
 }
 
 /* ── ALL ADS ── */
@@ -411,7 +427,7 @@ function renderAds(){
         <div class="kcard-lbl">Notizen</div>
         <textarea class="kcard-inp" rows="2" style="margin-bottom:10px" onchange="saveAd('${ad.id}','notes',this.value)">${esc(ad.notes||'')}</textarea>
         <div style="display:flex;gap:5px;flex-wrap:wrap">
-          ${ST.map(s=>`<button class="btn bsm${ad.status===s.id?' bsav':''}" onclick="setAdStatus('${ad.id}','${s.id}')">${esc(s.label)}</button>`).join('')}
+          ${ST.map(s=>`<button class="btn bsm${ad.status===s.id?' bsav':''}" onclick="event.stopPropagation();setAdStatus('${ad.id}','${s.id}')">${esc(s.label)}</button>`).join('')}
           <button class="btn bsm bdel" onclick="deleteAd('${ad.id}')">&#x1F5D1; L&ouml;schen</button>
         </div>
       </div>`;
@@ -445,14 +461,21 @@ function renderNewAd(){
 async function addAd(){
   const title=document.getElementById('na-title').value.trim();
   if(!title){alert('Titel eingeben');return;}
-  const row={title,type:document.getElementById('na-type').value,
+  const row={
+    title,
+    type:document.getElementById('na-type').value,
     hook:document.getElementById('na-hook').value,
     script:document.getElementById('na-script').value,
-    filming_notes:document.getElementById('na-film').value,
-    status:'skript',notes:''};
-  const data=await dbInsert('ads',row);
-  if(data&&data[0])ads.push(data[0]);
-  renderSidebar();sw('ads');
+    notes:document.getElementById('na-film').value,
+    status:'skript'
+  };
+  try{
+    const data=await dbInsert('ads',row);
+    if(data&&data[0])ads.push(data[0]);
+    renderSidebar();sw('ads');
+  }catch(err){
+    alert('Fehler beim Speichern: '+err.message);
+  }
 }
 
 /* ── PERFORMANCE ── */
