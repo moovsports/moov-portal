@@ -206,6 +206,27 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Inter',s
 .pp-del-btn:hover{background:#FEE2E2;}
 @media(max-width:1400px){.pp-board{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:900px){.pp-board{grid-template-columns:repeat(2,1fr);}.pp-wrap{padding:24px 20px;}}
+
+/* AD DETAIL MODAL */
+.ad-modal-overlay{position:fixed;inset:0;background:rgba(17,24,39,.4);display:flex;align-items:center;justify-content:center;z-index:500;padding:24px;backdrop-filter:blur(4px);animation:amFadeIn .18s ease;}
+@keyframes amFadeIn{from{opacity:0}to{opacity:1}}
+.ad-modal-box{background:#fff;border-radius:20px;width:100%;max-width:640px;max-height:90vh;display:flex;flex-direction:column;box-shadow:0 24px 60px rgba(17,24,39,.25);animation:amSlideUp .22s cubic-bezier(.2,.7,.3,1);overflow:hidden;}
+@keyframes amSlideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.ad-modal-head{display:flex;align-items:flex-start;gap:14px;padding:24px 26px 18px;border-bottom:1px solid #F0F0EE;}
+.ad-modal-title-inp{width:100%;font-family:'Inter',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.025em;color:#111827;border:none;outline:none;background:transparent;padding:0;margin-bottom:4px;}
+.ad-modal-title-inp::placeholder{color:#D8D8D5;}
+.ad-modal-type-inp{width:100%;font-family:'Inter',sans-serif;font-size:13px;color:#9CA3AF;border:none;outline:none;background:transparent;padding:0;}
+.ad-modal-type-inp::placeholder{color:#D8D8D5;}
+.ad-modal-close{width:34px;height:34px;border-radius:9px;border:1px solid #ECECEA;background:#fff;color:#6B7280;cursor:pointer;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .13s;}
+.ad-modal-close:hover{background:#111827;color:#fff;border-color:#111827;}
+.ad-modal-body{padding:20px 26px;overflow-y:auto;flex:1;}
+.am-lbl{font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:#B8B8B5;margin-bottom:7px;}
+.am-input{width:100%;font-family:'Inter',sans-serif;font-size:14px;color:#111827;background:#FAFAF9;border:1px solid #ECECEA;border-radius:12px;padding:11px 13px;outline:none;resize:vertical;line-height:1.55;margin-bottom:18px;transition:border-color .13s;}
+.am-input:focus{border-color:#111827;background:#fff;}
+.ad-modal-foot{display:flex;align-items:center;padding:16px 26px;border-top:1px solid #F0F0EE;background:#FAFAF9;}
+.am-done-btn{margin-left:auto;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:9px 22px;border-radius:10px;border:none;background:#111827;color:#fff;cursor:pointer;transition:all .13s;}
+.am-done-btn:hover{background:#000;transform:translateY(-1px);}
+.pp-card-preview{font-size:12px;color:#9CA3AF;margin-top:6px;line-height:1.45;}
 </style>
 </head>
 <body>
@@ -381,43 +402,80 @@ function renderPipeline(){
       </div>
       <div class="pp-cards">`;
     colAds.forEach(ad=>{
-      const isOpen=openAdId===ad.id;
       const sc=ST.find(s=>s.id===ad.status);
-      h+=`<div class="pp-card${isOpen?' open':''}"
-        draggable="${isOpen?'false':'true'}"
+      var preview = (ad.hook||ad.script||'').substring(0,70);
+      h+=`<div class="pp-card"
+        draggable="true"
         data-id="${ad.id}"
         ondragstart="kbDragStart(event,'${ad.id}')"
         ondragend="kbDragEnd(event)"
-        onclick="${isOpen?'':"togAd('"+ad.id+"')"}">
-        ${ad.type?`<div class="pp-card-eyebrow">${esc(ad.type)}</div>`:`<div class="pp-card-eyebrow" style="color:#D8D8D5">${esc(sc?sc.label.replace(/[^a-zA-Z\u00e4\u00f6\u00fc ]/g,'').trim():'')}</div>`}
-        <div class="pp-card-title">${esc(ad.title||'Ohne Titel')}</div>`;
-      if(!isOpen){
-        h+=`<div class="pp-card-foot"><span class="pp-card-date">&#x1F551; ${fmtAdDate(ad)}</span></div>`;
-        h+=`<div class="pp-handle">&#x2630;</div>`;
-        h+=`<button class="pp-del" onclick="event.stopPropagation();deleteAd('${ad.id}')" title="L\u00f6schen">&#x2715;</button>`;
-      } else {
-        h+=`<div class="pp-card-body" onclick="event.stopPropagation()">
-          <div class="pp-body-lbl">Hook</div>
-          <textarea class="pp-input" rows="2" placeholder="Hook eingeben..." onchange="saveAd('${ad.id}','hook',this.value)">${esc(ad.hook||'')}</textarea>
-          <div class="pp-body-lbl">Script</div>
-          <textarea class="pp-input" rows="4" placeholder="Script eingeben..." onchange="saveAd('${ad.id}','script',this.value)">${esc(ad.script||'')}</textarea>
-          <div class="pp-body-lbl">Status</div>
-          <div class="pp-status-row">
-            ${ST.map(s=>`<button class="pp-st-btn${ad.status===s.id?' active':''}" onclick="event.stopPropagation();setAdStatus('${ad.id}','${s.id}')">${esc(s.label)}</button>`).join('')}
-          </div>
-          ${buildStatusHistory(ad)}
-          <div class="pp-card-actions">
-            <button class="pp-del-btn" onclick="event.stopPropagation();deleteAd('${ad.id}')">&#x1F5D1; L\u00f6schen</button>
-          </div>
-        </div>`;
-      }
-      h+='</div>';
+        onclick="openAdModal('${ad.id}')">
+        ${ad.type?`<div class="pp-card-eyebrow">${esc(ad.type)}</div>`:''}
+        <div class="pp-card-title">${esc(ad.title||'Ohne Titel')}</div>
+        ${preview?`<div class="pp-card-preview">${esc(preview)}${preview.length>=70?'\u2026':''}</div>`:''}
+        <div class="pp-card-foot"><span class="pp-card-date">&#x1F551; ${fmtAdDate(ad)}</span></div>
+        <div class="pp-handle">&#x2630;</div>
+        <button class="pp-del" onclick="event.stopPropagation();deleteAd('${ad.id}')" title="L\u00f6schen">&#x2715;</button>
+      </div>`;
     });
     h+=`</div></div>`;
   });
   h+='</div></div>';
   var target=document.getElementById('pipeline-scroll');
   if(target)target.innerHTML=h;
+}
+
+// AD DETAIL MODAL
+function openAdModal(id){
+  var ad=ads.find(a=>a.id===id);if(!ad)return;
+  var sc=ST.find(s=>s.id===ad.status);
+  var overlay=document.getElementById('ad-modal');
+  if(overlay)overlay.remove();
+  overlay=document.createElement('div');
+  overlay.id='ad-modal';
+  overlay.className='ad-modal-overlay';
+  overlay.innerHTML=
+    '<div class="ad-modal-box">'+
+      '<div class="ad-modal-head">'+
+        '<div style="flex:1">'+
+          '<input class="ad-modal-title-inp" id="am-title" value="'+esc(ad.title||'')+'" placeholder="Titel" onchange="saveAd(\''+id+'\',\'title\',this.value);refreshPipelineSilent()">'+
+          '<input class="ad-modal-type-inp" id="am-type" value="'+esc(ad.type||'')+'" placeholder="Typ (Founder / Static / UGC)" onchange="saveAd(\''+id+'\',\'type\',this.value);refreshPipelineSilent()">'+
+        '</div>'+
+        '<button class="ad-modal-close" onclick="closeAdModal()">&#x2715;</button>'+
+      '</div>'+
+      '<div class="ad-modal-body">'+
+        '<div class="am-lbl">Status</div>'+
+        '<div class="pp-status-row" style="margin-bottom:18px">'+
+          ST.map(function(s){return '<button class="pp-st-btn'+(ad.status===s.id?' active':'')+'" onclick="setAdStatusModal(\''+id+'\',\''+s.id+'\')">'+esc(s.label)+'</button>';}).join('')+
+        '</div>'+
+        '<div class="am-lbl">Hook</div>'+
+        '<textarea class="am-input" rows="3" placeholder="Hook eingeben..." onchange="saveAd(\''+id+'\',\'hook\',this.value)">'+esc(ad.hook||'')+'</textarea>'+
+        '<div class="am-lbl">Script</div>'+
+        '<textarea class="am-input" rows="8" placeholder="Script eingeben..." onchange="saveAd(\''+id+'\',\'script\',this.value)">'+esc(ad.script||'')+'</textarea>'+
+        '<div class="am-lbl">Notizen</div>'+
+        '<textarea class="am-input" rows="3" placeholder="Notizen..." onchange="saveAd(\''+id+'\',\'notes\',this.value)">'+esc(ad.notes||'')+'</textarea>'+
+        buildStatusHistory(ad)+
+      '</div>'+
+      '<div class="ad-modal-foot">'+
+        '<button class="pp-del-btn" onclick="deleteAdFromModal(\''+id+'\')">&#x1F5D1; Ad l\u00f6schen</button>'+
+        '<button class="am-done-btn" onclick="closeAdModal()">Fertig</button>'+
+      '</div>'+
+    '</div>';
+  overlay.addEventListener('click',function(e){if(e.target===overlay)closeAdModal();});
+  document.body.appendChild(overlay);
+}
+function closeAdModal(){var o=document.getElementById('ad-modal');if(o)o.remove();}
+function refreshPipelineSilent(){if(curTab==='pipeline')renderPipeline();}
+async function setAdStatusModal(id,status){
+  await setAdStatus(id,status);
+  openAdModal(id); // refresh modal
+}
+async function deleteAdFromModal(id){
+  if(!confirm('Ad l\u00f6schen?'))return;
+  closeAdModal();
+  await dbDelSerial('ads',id);
+  ads=ads.filter(a=>a.id!==id);
+  renderSidebar();renderPipeline();
 }
 
 function fmtAdDate(ad){
@@ -484,7 +542,7 @@ function kbDragStart(e, id){
 function kbDragEnd(e){
   dragId=null;
   e.currentTarget.style.opacity='1';
-  document.querySelectorAll('.kb-col').forEach(c=>{
+  document.querySelectorAll('.pp-col,.kb-col').forEach(c=>{
     c.classList.remove('drag-over');
   });
 }
