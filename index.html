@@ -607,6 +607,10 @@ async function saveAd(id,field,val){
     await dbUpdate('ads',id,{[field]:val});
   }catch(err){
     console.error('Speicherfehler:',err.message);
+    // Surface schema errors so user knows a column is missing
+    if(err.message&&(err.message.toLowerCase().includes('column')||err.message.toLowerCase().includes('schema')||err.code==='PGRST204')){
+      alert('Feld "'+field+'" konnte nicht gespeichert werden.\n\nWahrscheinlich fehlt die Spalte in Supabase. F\u00fchre dieses SQL aus:\n\nALTER TABLE ads ADD COLUMN IF NOT EXISTS '+field+' TEXT DEFAULT \'\';\n\nFehler: '+err.message);
+    }
   }
 }
 async function setAdStatus(id,status){
