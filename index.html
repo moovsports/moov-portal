@@ -386,6 +386,15 @@ async function loadAll(){
 }
 
 /* ── PIPELINE ── */
+function nextAdNumber(){
+  var maxN=0;
+  ads.forEach(function(a){
+    var m=String(a.title||'').match(/AD\s*(\d+)/i);
+    if(m){var n=parseInt(m[1]);if(n>maxN)maxN=n;}
+  });
+  return 'AD '+(maxN+1);
+}
+
 function renderPipeline(){
   const colsToShow=COLS.filter(c=>['skript','aufnehmen','schneiden','testen','winner','loser'].includes(c.id));
   let h='<div class="pp-wrap">'+
@@ -522,7 +531,7 @@ function buildStatusHistory(ad){
 }
 
 async function quickAdd(status){
-  var title=prompt('Titel der neuen Ad:');
+  var title=prompt('Titel der neuen Ad:', nextAdNumber()+' – ');
   if(!title||!title.trim())return;
   var now=new Date().toISOString();
   var row={
@@ -675,10 +684,11 @@ async function deleteAd(id){
 
 /* ── NEW AD ── */
 function renderNewAd(){
+  var suggested=nextAdNumber();
   document.getElementById('new-form').innerHTML=`<div style="padding:20px;max-width:600px">
     <div class="vh"><div class="vh-title">Neue Ad</div></div>
     <div style="background:var(--sur);border:1px solid var(--bd);border-radius:12px;padding:18px;box-shadow:var(--shadow)">
-      <div style="margin-bottom:10px"><div class="kcard-lbl">Titel</div><input id="na-title" class="kcard-inp" style="display:block" placeholder="AD 36 – Founder"></div>
+      <div style="margin-bottom:10px"><div class="kcard-lbl">Titel</div><input id="na-title" class="kcard-inp" style="display:block" value="${suggested} – " placeholder="AD 36 – Founder"></div>
       <div style="margin-bottom:10px"><div class="kcard-lbl">Typ</div><input id="na-type" class="kcard-inp" style="display:block" placeholder="Founder / Static / UGC"></div>
       <div style="margin-bottom:10px"><div class="kcard-lbl">Hook</div><textarea id="na-hook" class="kcard-inp" rows="2"></textarea></div>
       <div style="margin-bottom:10px"><div class="kcard-lbl">Script</div><textarea id="na-script" class="kcard-inp" rows="5"></textarea></div>
