@@ -234,6 +234,61 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Inter',s
 .am-link-open:hover{background:#000;}
 .pp-card-link{margin-left:auto;font-size:13px;text-decoration:none;color:#9CA3AF;transition:color .12s;}
 .pp-card-link:hover{color:#111827;}
+
+/* ═══ PRIORITÄT auf Pipeline-Karten ═══ */
+.pp-card.pp-prio-hoch{border-color:#DC2626;border-width:1.5px;box-shadow:0 1px 2px rgba(220,38,38,.10);}
+.pp-card.pp-prio-hoch:hover{border-color:#B91C1C;box-shadow:0 8px 24px rgba(220,38,38,.16);}
+.pp-prio-flag{display:inline-flex;align-items:center;gap:4px;font-family:'DM Mono',monospace;font-size:9px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;color:#DC2626;background:#FEE2E2;padding:3px 8px;border-radius:20px;margin-bottom:8px;}
+.am-prio-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:500;padding:5px 13px;border-radius:8px;border:1px solid #ECECEA;background:#fff;color:#6B7280;cursor:pointer;transition:all .12s;}
+.am-prio-btn:hover{border-color:#C8C8C5;color:#111827;}
+.am-prio-btn.active{color:#fff;font-weight:600;}
+
+/* ═══ ADS TO-DOS ═══ */
+#vw-todos.on{background:#FAFAF9;}
+.td-composer{display:flex;gap:8px;margin-bottom:18px;flex-wrap:wrap;background:#fff;border:1px solid #ECECEA;border-radius:16px;padding:12px;box-shadow:0 1px 2px rgba(17,24,39,.04);}
+.td-inp{flex:1;min-width:240px;font-family:'Inter',sans-serif;font-size:14px;color:#111827;background:#FAFAF9;border:1px solid #ECECEA;border-radius:10px;padding:10px 13px;outline:none;transition:border-color .13s;}
+.td-inp:focus{border-color:#111827;background:#fff;}
+.td-sel{font-family:'Inter',sans-serif;font-size:13px;color:#111827;background:#FAFAF9;border:1px solid #ECECEA;border-radius:10px;padding:10px 11px;outline:none;cursor:pointer;transition:border-color .13s;}
+.td-sel:focus{border-color:#111827;}
+.td-add{font-family:'Inter',sans-serif;font-size:13px;font-weight:600;padding:10px 20px;border-radius:10px;border:none;background:#111827;color:#fff;cursor:pointer;transition:all .13s;white-space:nowrap;}
+.td-add:hover{background:#000;transform:translateY(-1px);}
+.td-filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px;}
+.td-sep{width:1px;height:20px;background:#E4E4E2;margin:0 4px;}
+.td-chip{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;padding:6px 13px;border-radius:20px;border:1px solid #ECECEA;background:#fff;color:#6B7280;cursor:pointer;transition:all .13s;display:inline-flex;align-items:center;gap:5px;}
+.td-chip:hover{border-color:#C8C8C5;color:#111827;}
+.td-chip.on{background:#111827;border-color:#111827;color:#fff;}
+.td-chip-n{font-family:'DM Mono',monospace;font-size:10px;opacity:.65;}
+.td-list{display:flex;flex-direction:column;gap:10px;}
+.td-row{display:flex;align-items:flex-start;gap:13px;background:#fff;border:1px solid #ECECEA;border-radius:16px;padding:15px 16px;transition:all .16s cubic-bezier(.2,.7,.3,1);box-shadow:0 1px 2px rgba(17,24,39,.04);}
+.td-row:hover{border-color:#D8D8D5;box-shadow:0 6px 18px rgba(17,24,39,.07);}
+.td-row.td-prio-hoch{border-left:3px solid #DC2626;}
+.td-row.td-prio-mittel{border-left:3px solid #D97706;}
+.td-row.td-prio-niedrig{border-left:3px solid #E4E4E2;}
+.td-row.done{opacity:.5;}
+.td-row.done .td-text{text-decoration:line-through;color:#9CA3AF;}
+.td-check{width:22px;height:22px;border-radius:7px;border:1.5px solid #D8D8D5;background:#fff;cursor:pointer;flex-shrink:0;margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:12px;color:#fff;transition:all .13s;}
+.td-check:hover{border-color:#111827;}
+.td-check.on{background:#111827;border-color:#111827;}
+.td-main{flex:1;min-width:0;}
+.td-text{font-size:14px;font-weight:500;color:#111827;line-height:1.45;word-break:break-word;}
+.td-meta{display:flex;gap:8px;align-items:center;margin-top:7px;flex-wrap:wrap;}
+.td-cat{font-size:11px;color:#9CA3AF;font-weight:500;}
+.td-prio-chip{font-family:'DM Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;padding:2px 8px;border-radius:20px;}
+.td-linked{font-size:11px;color:#6B7280;background:#F2F2F0;padding:2px 9px;border-radius:20px;cursor:pointer;transition:all .12s;}
+.td-linked:hover{background:#111827;color:#fff;}
+.td-actions{display:flex;gap:5px;align-items:center;flex-shrink:0;}
+.td-btn{font-family:'Inter',sans-serif;font-size:11px;font-weight:500;padding:6px 12px;border-radius:8px;border:1px solid #ECECEA;background:#fff;color:#6B7280;cursor:pointer;transition:all .12s;white-space:nowrap;}
+.td-btn:hover{border-color:#C8C8C5;color:#111827;}
+.td-btn-primary{background:#111827;border-color:#111827;color:#fff;}
+.td-btn-primary:hover{background:#000;color:#fff;}
+.td-icon{width:28px;height:28px;border-radius:8px;border:1px solid #ECECEA;background:#fff;color:#9CA3AF;cursor:pointer;font-size:12px;display:flex;align-items:center;justify-content:center;transition:all .12s;}
+.td-icon:hover{background:#F2F2F0;color:#111827;border-color:#C8C8C5;}
+.td-icon-del:hover{background:#FEE2E2;color:#DC2626;border-color:#FECACA;}
+.td-empty{text-align:center;padding:60px 20px;}
+.td-empty-ic{font-size:38px;margin-bottom:12px;opacity:.5;}
+.td-empty-t{font-size:16px;font-weight:600;color:#6B7280;margin-bottom:5px;}
+.td-empty-s{font-size:13px;color:#B8B8B5;}
+@media(max-width:900px){.td-composer{flex-direction:column;}.td-inp{min-width:0;}.td-actions{flex-direction:column;}}
 </style>
 </head>
 <body>
@@ -275,6 +330,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Inter',s
     <button class="nb" id="nb-performance" onclick="sw('performance')">&#x1F4CA; Performance</button>
     <button class="nb" id="nb-hooks" onclick="sw('hooks')">&#x1F3A3; Hooks <span class="nb-ct" id="ct-hooks">0</span></button>
     <button class="nb" id="nb-new" onclick="sw('new')">+ Neue Ad</button>
+    <button class="nb" id="nb-todos" onclick="sw('todos')">&#x2705; Ads To-Dos <span class="nb-ct" id="ct-todos">0</span></button>
     <div class="sb-section">FINANZEN &amp; OPS</div>
     <button class="nb" id="nb-pnl" onclick="sw('pnl')">&#x1F4C8; P&amp;L Tracker</button>
     <button class="nb" id="nb-lieferungen" onclick="sw('lieferungen')">&#x1F4E6; Lieferungen</button>
@@ -298,6 +354,7 @@ html,body{height:100%;background:var(--bg);color:var(--tx);font-family:'Inter',s
     <div class="view" id="vw-performance"><div class="scroll-view"><div id="perf-content"></div></div></div>
     <div class="view" id="vw-hooks"><div class="scroll-view" id="hooks-list"></div></div>
     <div class="view" id="vw-new"><div class="scroll-view" id="new-form"></div></div>
+    <div class="view" id="vw-todos"><div class="scroll-view" id="todos-scroll"></div></div>
     <div class="view" id="vw-pnl"><iframe src="/moov_pnl.html" id="pnl-iframe"></iframe></div>
     <div class="view" id="vw-lieferungen"><iframe src="/moov_lieferungen.html" id="lief-iframe"></iframe></div>
     <div class="view" id="vw-studios"><iframe src="/moov_studios.html" id="studios-iframe"></iframe></div>
@@ -323,8 +380,20 @@ const COLS=[
   {id:'winner',  label:'Winner ⭐', color:'#10B981'},
   {id:'loser',   label:'Loser ✗',  color:'#EF4444'}
 ];
+const PRIO=[
+  {id:'hoch',   label:'Hoch',    color:'#DC2626', soft:'#FEE2E2'},
+  {id:'mittel', label:'Mittel',  color:'#D97706', soft:'#FEF3C7'},
+  {id:'niedrig',label:'Niedrig', color:'#9CA3AF', soft:'#F1F1F0'}
+];
+const TODO_CATS=[
+  {id:'woche',  label:'Wochen-Ads',   icon:'\uD83D\uDCC5'},
+  {id:'optim',  label:'Optimierung',  icon:'\u26A1'},
+  {id:'idee',   label:'Idee',         icon:'\uD83D\uDCA1'}
+];
+function prioOf(x){ return PRIO.find(p=>p.id===(x&&x.priority))||PRIO[1]; }
 const charts={};
-let sb=null,ads=[],hooks=[],metaData=[],financials=[];
+let sb=null,ads=[],hooks=[],metaData=[],financials=[],todos=[];
+let todoFilter='offen';
 let curTab='pipeline',openAdId=null,curAdFilter='all';
 let hkFilter='all', editingHookId=null, showArchived=false;
 window.selectedKW='';
@@ -359,7 +428,7 @@ function roasCls(r){return r>=2.5?'roas-g':r>=1?'roas-a':'roas-r';}
 /* ── NAV ── */
 function sw(t){
   curTab=t;
-  const normalViews=['pipeline','ads','performance','hooks','new','settings'];
+  const normalViews=['pipeline','ads','performance','hooks','new','todos','settings'];
   const iframeViews=['pnl','lieferungen','studios'];
   normalViews.forEach(x=>{const el=document.getElementById('vw-'+x);if(el)el.classList.toggle('on',x===t);});
   iframeViews.forEach(x=>{const el=document.getElementById('vw-'+x);if(el)el.classList.toggle('on',x===t);});
@@ -373,15 +442,17 @@ function sw(t){
   else if(t==='performance'){var old=document.getElementById('perf-modal');if(old)old.remove();renderPerformance();}
   else if(t==='hooks')renderHooks();
   else if(t==='new')renderNewAd();
+  else if(t==='todos')renderTodos();
   else if(t==='settings')renderSettings();
 }
 
 /* ── LOAD ── */
 async function loadAll(){
-  [ads,hooks,metaData,financials]=await Promise.all([
+  [ads,hooks,metaData,financials,todos]=await Promise.all([
     dbGet('ads'),dbGet('hooks'),
     dbGet('meta_performance').catch(()=>[]),
-    dbGet('financials').catch(()=>[])
+    dbGet('financials').catch(()=>[]),
+    dbGet('ad_todos').catch(()=>[])
   ]);
 }
 
@@ -420,12 +491,14 @@ function renderPipeline(){
     colAds.forEach(ad=>{
       const sc=ST.find(s=>s.id===ad.status);
       var preview = (ad.hook||ad.script||'').substring(0,70);
-      h+=`<div class="pp-card"
+      const pr=prioOf(ad);
+      h+=`<div class="pp-card pp-prio-${pr.id}"
         draggable="true"
         data-id="${ad.id}"
         ondragstart="kbDragStart(event,'${ad.id}')"
         ondragend="kbDragEnd(event)"
         onclick="openAdModal('${ad.id}')">
+        ${pr.id==='hoch'?'<div class="pp-prio-flag" title="Priorit\u00e4t hoch">\u25B2 Hoch</div>':''}
         ${ad.type?`<div class="pp-card-eyebrow">${esc(ad.type)}</div>`:''}
         <div class="pp-card-title">${esc(ad.title||'Ohne Titel')}</div>
         ${preview?`<div class="pp-card-preview">${esc(preview)}${preview.length>=70?'\u2026':''}</div>`:''}
@@ -463,6 +536,10 @@ function openAdModal(id){
         '<div class="am-lbl">Status</div>'+
         '<div class="pp-status-row" style="margin-bottom:18px">'+
           ST.map(function(s){return '<button class="pp-st-btn'+(ad.status===s.id?' active':'')+'" onclick="setAdStatusModal(\''+id+'\',\''+s.id+'\')">'+esc(s.label)+'</button>';}).join('')+
+        '</div>'+
+        '<div class="am-lbl">Priorit\u00e4t</div>'+
+        '<div class="pp-status-row" style="margin-bottom:18px">'+
+          PRIO.map(function(p){var on=prioOf(ad).id===p.id;return '<button class="am-prio-btn'+(on?' active':'')+'" style="'+(on?'background:'+p.color+';border-color:'+p.color+';color:#fff':'')+'" onclick="setAdPriority(\''+id+'\',\''+p.id+'\')">'+esc(p.label)+'</button>';}).join('')+
         '</div>'+
         '<div class="am-lbl">Hook</div>'+
         '<textarea class="am-input" rows="3" placeholder="Hook eingeben..." onchange="saveAd(\''+id+'\',\'hook\',this.value)">'+esc(ad.hook||'')+'</textarea>'+
@@ -536,6 +613,7 @@ async function quickAdd(status){
   var now=new Date().toISOString();
   var row={
     title:title.trim(),type:'',hook:'',script:'',notes:'',status:status,
+    priority:'mittel',
     status_history:[{status:status,date:now}]
   };
   try{
@@ -543,8 +621,8 @@ async function quickAdd(status){
     if(data&&data[0])ads.push(data[0]);
     renderSidebar();renderPipeline();
   }catch(err){
-    // Retry without status_history if column doesn't exist
-    delete row.status_history;
+    // Retry without optional columns if they don't exist
+    delete row.status_history; delete row.priority;
     try{
       var data2=await dbInsert('ads',row);
       if(data2&&data2[0])ads.push(data2[0]);
@@ -712,6 +790,7 @@ async function addAd(){
     notes:document.getElementById('na-film').value,
     inspo_url:'',
     status:'skript',
+    priority:'mittel',
     status_history:[{status:'skript',date:new Date().toISOString()}]
   };
   try{
@@ -719,7 +798,7 @@ async function addAd(){
     if(data&&data[0])ads.push(data[0]);
     renderSidebar();sw('ads');
   }catch(err){
-    delete row.status_history;
+    delete row.status_history; delete row.priority; delete row.inspo_url;
     try{
       const data2=await dbInsert('ads',row);
       if(data2&&data2[0])ads.push(data2[0]);
@@ -931,6 +1010,205 @@ function renderPerfCharts(sorted,weeks){
   if(c5){const wkRoas=weeks.map(w=>{const d=metaData.filter(r=>r.kw===w&&(+r.spend||0)>0);const sp=d.reduce((s,r)=>s+(+r.spend||0),0);const rv=d.reduce((s,r)=>s+(+r.revenue||0),0);return sp>0?+(rv/sp).toFixed(2):0;});charts['chart-wk-roas']=new Chart(c5,{type:'bar',data:{labels:weeks,datasets:[{label:'ROAS \u00d8',data:wkRoas,backgroundColor:wkRoas.map(v=>v>=2.5?'rgba(5,150,105,.7)':v>=1?'rgba(217,119,6,.7)':'rgba(220,38,38,.7)'),borderRadius:4}]},options:{...baseOpt,plugins:{legend:{display:false}}}});}
 }
 
+
+/* ══════════ ADS TO-DOS ══════════ */
+function setTodoFilter(f){ todoFilter=f; renderTodos(); }
+
+function todoCounts(){
+  var offen=todos.filter(function(t){return !t.done;}).length;
+  return {offen:offen, alle:todos.length, erledigt:todos.length-offen};
+}
+
+function renderTodos(){
+  var c=todoCounts();
+  var list=todos.slice();
+  if(todoFilter==='offen') list=list.filter(function(t){return !t.done;});
+  else if(todoFilter==='erledigt') list=list.filter(function(t){return t.done;});
+  else if(TODO_CATS.some(function(x){return x.id===todoFilter;})) list=list.filter(function(t){return t.category===todoFilter && !t.done;});
+
+  // sort: priority hoch first, then newest
+  var rank={hoch:0,mittel:1,niedrig:2};
+  list.sort(function(a,b){
+    if(a.done!==b.done) return a.done?1:-1;
+    var ra=rank[a.priority]!==undefined?rank[a.priority]:1;
+    var rb=rank[b.priority]!==undefined?rank[b.priority]:1;
+    if(ra!==rb) return ra-rb;
+    return new Date(b.created_at||0)-new Date(a.created_at||0);
+  });
+
+  var chips=[
+    {id:'offen',   label:'Offen',    n:c.offen},
+    {id:'alle',    label:'Alle',     n:c.alle},
+    {id:'erledigt',label:'Erledigt', n:c.erledigt}
+  ].map(function(f){
+    return '<button class="td-chip'+(todoFilter===f.id?' on':'')+'" onclick="setTodoFilter(\''+f.id+'\')">'+esc(f.label)+' <span class="td-chip-n">'+f.n+'</span></button>';
+  }).join('');
+  var catChips=TODO_CATS.map(function(cat){
+    var n=todos.filter(function(t){return t.category===cat.id && !t.done;}).length;
+    return '<button class="td-chip'+(todoFilter===cat.id?' on':'')+'" onclick="setTodoFilter(\''+cat.id+'\')">'+cat.icon+' '+esc(cat.label)+' <span class="td-chip-n">'+n+'</span></button>';
+  }).join('');
+
+  var html='<div class="pp-wrap">'+
+    '<div class="pp-head">'+
+      '<div class="pp-eyebrow">Ads To-Dos</div>'+
+      '<div class="pp-title">Was ansteht <span class="dim">Ideen, Optimierungen, Wochen-Ads</span></div>'+
+      '<div class="pp-sub">'+c.offen+' offen &middot; schick ein To-Do direkt als Skript in die Pipeline</div>'+
+    '</div>'+
+
+    '<div class="td-composer">'+
+      '<input class="td-inp" id="td-text" placeholder="Was willst du machen? z.B. AD 42 \u2013 Founder Hook testen" onkeydown="if(event.key===\'Enter\')addTodo()">'+
+      '<select class="td-sel" id="td-cat">'+
+        TODO_CATS.map(function(x){return '<option value="'+x.id+'">'+x.icon+' '+esc(x.label)+'</option>';}).join('')+
+      '</select>'+
+      '<select class="td-sel" id="td-prio">'+
+        PRIO.map(function(p){return '<option value="'+p.id+'"'+(p.id==='mittel'?' selected':'')+'>'+esc(p.label)+'</option>';}).join('')+
+      '</select>'+
+      '<button class="td-add" onclick="addTodo()">Hinzuf\u00fcgen</button>'+
+    '</div>'+
+
+    '<div class="td-filters">'+chips+'<span class="td-sep"></span>'+catChips+'</div>';
+
+  if(!list.length){
+    html+='<div class="td-empty"><div class="td-empty-ic">\u2705</div><div class="td-empty-t">Nichts hier</div>'+
+      '<div class="td-empty-s">'+(todoFilter==='erledigt'?'Noch nichts abgehakt.':'Alles erledigt \u2013 oder leg oben ein neues To-Do an.')+'</div></div>';
+  } else {
+    html+='<div class="td-list">'+list.map(buildTodoRow).join('')+'</div>';
+  }
+  html+='</div>';
+
+  var target=document.getElementById('todos-scroll');
+  if(target)target.innerHTML=html;
+  renderSidebar();
+}
+
+function buildTodoRow(t){
+  var p=prioOf(t);
+  var cat=TODO_CATS.find(function(x){return x.id===t.category;})||TODO_CATS[2];
+  var linked=t.ad_id?ads.find(function(a){return a.id===t.ad_id;}):null;
+  return '<div class="td-row'+(t.done?' done':'')+' td-prio-'+p.id+'">'+
+    '<button class="td-check'+(t.done?' on':'')+'" onclick="toggleTodo(\''+t.id+'\')" title="'+(t.done?'Wieder \u00f6ffnen':'Erledigt')+'">'+(t.done?'\u2713':'')+'</button>'+
+    '<div class="td-main">'+
+      '<div class="td-text">'+esc(t.text||'')+'</div>'+
+      '<div class="td-meta">'+
+        '<span class="td-cat">'+cat.icon+' '+esc(cat.label)+'</span>'+
+        '<span class="td-prio-chip" style="background:'+p.soft+';color:'+p.color+'">'+esc(p.label)+'</span>'+
+        (linked?'<span class="td-linked" onclick="event.stopPropagation();sw(\'pipeline\')" title="In Pipeline ansehen">\u21B3 '+esc(linked.title||'Ad')+'</span>':'')+
+      '</div>'+
+    '</div>'+
+    '<div class="td-actions">'+
+      (!t.ad_id&&!t.done?'<button class="td-btn td-btn-primary" onclick="todoToPipeline(\''+t.id+'\')" title="Als Skript in die Pipeline">\u2192 Pipeline</button>':'')+
+      '<button class="td-icon" onclick="cycleTodoPriority(\''+t.id+'\')" title="Priorit\u00e4t wechseln">\u2691</button>'+
+      '<button class="td-icon td-icon-del" onclick="deleteTodo(\''+t.id+'\')" title="L\u00f6schen">\u2715</button>'+
+    '</div>'+
+  '</div>';
+}
+
+async function addTodo(){
+  var el=document.getElementById('td-text');
+  var text=el?el.value.trim():'';
+  if(!text)return;
+  var row={
+    text:text,
+    category:document.getElementById('td-cat').value||'idee',
+    priority:document.getElementById('td-prio').value||'mittel',
+    done:false,
+    ad_id:null
+  };
+  try{
+    var data=await dbInsert('ad_todos',row);
+    if(data&&data[0])todos.unshift(data[0]);
+    if(el)el.value='';
+    renderTodos();
+  }catch(err){
+    alert('To-Do konnte nicht gespeichert werden.\n\nFehlt die Tabelle? F\u00fchre in Supabase aus:\n\nCREATE TABLE IF NOT EXISTS ad_todos (id uuid PRIMARY KEY DEFAULT gen_random_uuid(), text TEXT NOT NULL, category TEXT DEFAULT \'idee\', priority TEXT DEFAULT \'mittel\', done BOOLEAN DEFAULT false, ad_id uuid, created_at TIMESTAMPTZ DEFAULT now());\n\nFehler: '+err.message);
+  }
+}
+
+async function toggleTodo(id){
+  var t=todos.find(function(x){return x.id===id;});if(!t)return;
+  t.done=!t.done;
+  renderTodos();
+  try{ await dbUpdate('ad_todos',id,{done:t.done}); }
+  catch(err){ t.done=!t.done; renderTodos(); alert('Fehler: '+err.message); }
+}
+
+async function cycleTodoPriority(id){
+  var t=todos.find(function(x){return x.id===id;});if(!t)return;
+  var order=['hoch','mittel','niedrig'];
+  var i=order.indexOf(prioOf(t).id);
+  var next=order[(i+1)%order.length];
+  var old=t.priority;
+  t.priority=next;
+  renderTodos();
+  try{ await dbUpdate('ad_todos',id,{priority:next}); }
+  catch(err){ t.priority=old; renderTodos(); alert('Fehler: '+err.message); }
+}
+
+async function deleteTodo(id){
+  if(!confirm('To-Do l\u00f6schen?'))return;
+  var backup=todos.slice();
+  todos=todos.filter(function(x){return x.id!==id;});
+  renderTodos();
+  try{ await dbDelSerial('ad_todos',id); }
+  catch(err){ todos=backup; renderTodos(); alert('Fehler: '+err.message); }
+}
+
+/* ── To-Do → Pipeline ── */
+async function todoToPipeline(id){
+  var t=todos.find(function(x){return x.id===id;});if(!t)return;
+  // Suggest a title: use AD-number if the text has none
+  var hasAdNum=/AD\s*\d+/i.test(t.text);
+  var suggested=hasAdNum?t.text:(nextAdNumber()+' \u2013 '+t.text);
+  var title=prompt('Titel der neuen Ad:', suggested);
+  if(!title||!title.trim())return;
+
+  var now=new Date().toISOString();
+  var row={
+    title:title.trim(), type:'', hook:'', script:'', notes:'To-Do: '+t.text,
+    status:'skript', priority:t.priority||'mittel', inspo_url:'',
+    status_history:[{status:'skript',date:now}]
+  };
+  var created=null;
+  try{
+    var data=await dbInsert('ads',row);
+    if(data&&data[0])created=data[0];
+  }catch(err){
+    // graceful fallback if optional columns are missing
+    delete row.status_history; delete row.priority; delete row.inspo_url;
+    try{
+      var d2=await dbInsert('ads',row);
+      if(d2&&d2[0])created=d2[0];
+    }catch(e2){ alert('Ad konnte nicht erstellt werden: '+e2.message); return; }
+  }
+  if(!created)return;
+  ads.push(created);
+
+  // link todo -> ad, mark done
+  t.ad_id=created.id;
+  t.done=true;
+  try{ await dbUpdate('ad_todos',id,{ad_id:created.id,done:true}); }
+  catch(err){ console.error('Verkn\u00fcpfung nicht gespeichert:',err.message); }
+
+  renderSidebar();
+  renderTodos();
+  sw('pipeline');
+}
+
+/* ── Ad priority ── */
+async function setAdPriority(id,prio){
+  var ad=ads.find(function(a){return a.id===id;});if(!ad)return;
+  var old=ad.priority;
+  ad.priority=prio;
+  openAdModal(id);
+  refreshPipelineSilent();
+  try{ await dbUpdate('ads',id,{priority:prio}); }
+  catch(err){
+    ad.priority=old;
+    openAdModal(id); refreshPipelineSilent();
+    alert('Priorit\u00e4t konnte nicht gespeichert werden.\n\nF\u00fchre in Supabase aus:\nALTER TABLE ads ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT \'mittel\';\n\nFehler: '+err.message);
+  }
+}
+
 /* ── HOOKS ── */
 function renderHooks(){
   document.getElementById('ct-hooks').textContent=hooks.filter(h=>!h.archived).length;
@@ -999,6 +1277,8 @@ function logout(){localStorage.removeItem('sb_url');localStorage.removeItem('sb_
 
 /* ── SIDEBAR ── */
 function renderSidebar(){
+  var ctT=document.getElementById('ct-todos');
+  if(ctT)ctT.textContent=todos.filter(function(t){return !t.done;}).length;
   document.getElementById('ct-ads').textContent=ads.length;
   document.getElementById('ct-hooks').textContent=hooks.filter(h=>!h.archived).length;
   document.getElementById('ov-w').textContent=ads.filter(a=>a.status==='winner').length;
@@ -1009,7 +1289,7 @@ function renderSidebar(){
 
 /* ── EXPORT ── */
 function exportForClaude(){
-  const data={exportDate:new Date().toLocaleDateString('de-CH'),hinweis:'Schick mir diese Datei im Chat und sag mir was du \u00e4ndern m\u00f6chtest!',ads,hooks,metaData,financials};
+  const data={exportDate:new Date().toLocaleDateString('de-CH'),hinweis:'Schick mir diese Datei im Chat und sag mir was du \u00e4ndern m\u00f6chtest!',ads,hooks,metaData,financials,todos};
   const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');a.href=url;a.download='moov_export_'+new Date().toISOString().split('T')[0]+'.json';a.click();
