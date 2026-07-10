@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>MOOV Lieferanten</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{--bg:#F7F7F5;--sur:#fff;--sur2:#F2F2F0;--sur3:#EAEAE8;--bd:#E8E8E6;--bds:#CECECE;--tx:#111827;--tx2:#6B7280;--tx3:#9CA3AF;--teal:#1D9E75;--td:rgba(29,158,117,.09);--tb:rgba(29,158,117,.22);--green:#059669;--gd:#D1FAE5;--red:#DC2626;--rd:#FEE2E2;--amber:#D97706;--ad:#FEF3C7;--blue:#2563EB;--bld:#DBEAFE;--sh:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);--shm:0 4px 14px rgba(0,0,0,.09),0 2px 4px rgba(0,0,0,.05);}
@@ -80,6 +81,17 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
 .mbtns{display:flex;gap:7px;margin-top:14px;}
 .mbtns .btn{flex:1;justify-content:center;padding:9px;}
 .mdel{margin-top:10px;padding-top:10px;border-top:1px solid var(--bd);}
+
+/* ═══ MOBILE ═══ */
+@media (max-width:820px){
+  .sum-row{grid-template-columns:repeat(2,1fr)!important;gap:8px;}
+  input,select,textarea{font-size:16px!important;}
+  table{min-width:520px;}
+  .modal,.modal-box{max-width:100%!important;}
+}
+@media (max-width:400px){
+  .sum-row{grid-template-columns:1fr!important;}
+}
 </style>
 </head>
 <body>
@@ -111,6 +123,163 @@ html,body{background:var(--bg);color:var(--tx);font-family:'Inter',sans-serif;fo
   </div>
 </div>
 <script>
+/* ══════════ PORTAL STORE — Supabase Sync ══════════
+   Speichert State in Supabase (geräteübergreifend)
+   und spiegelt lokal (Offline-Cache + Fallback).      */
+var PS = (function(){
+  var sb=null, ok=false, timers={}, badgeEl=null;
+
+  function init(){
+    if(ok) return true;
+    try{
+      var u=localStorage.getItem('sb_url'), k=localStorage.getItem('sb_key');
+      if(!u||!k||typeof supabase==='undefined') return false;
+      sb=supabase.createClient(u,k);
+      ok=true;
+    }catch(e){ ok=false; }
+    return ok;
+  }
+  function ready(){ return ok; }
+  function disable(){ ok=false; }   // Sicherheitsschalter: nie lokal ueber Cloud schreiben
+
+  async function load(key){
+    if(!ok) return null;
+    var r=await sb.from('portal_state').select('data').eq('key',key).maybeSingle();
+    if(r.error) throw r.error;
+    return r.data ? r.data.data : null;
+  }
+
+  async function saveNow(key,data){
+    if(!ok) return;
+    var r=await sb.from('portal_state')
+      .upsert({key:key,data:data,updated_at:new Date().toISOString()},{onConflict:'key'});
+    if(r.error) throw r.error;
+    setBadge('ok');
+  }
+
+  function save(key,data,delay){
+    if(!ok){ setBadge('local'); return; }
+    setBadge('pending');
+    if(timers[key]) clearTimeout(timers[key]);
+    timers[key]=setTimeout(function(){
+      saveNow(key,JSON.parse(JSON.stringify(data)))
+        .catch(function(e){ console.error('Sync-Fehler:',e.message); setBadge('err',e.message); });
+    }, delay||700);
+  }
+
+  /* ── Dokumente (eigene Tabelle, eine Zeile pro Datei) ── */
+  async function docGet(id){
+    if(!ok) return null;
+    var r=await sb.from('portal_docs').select('data,mime_type').eq('id',id).maybeSingle();
+    if(r.error) throw r.error;
+    return r.data ? {data:r.data.data, mimeType:r.data.mime_type} : null;
+  }
+  async function docPut(id,b64,mime){
+    if(!ok) throw new Error('Keine Verbindung');
+    var r=await sb.from('portal_docs').upsert({id:id,data:b64,mime_type:mime||'application/pdf'},{onConflict:'id'});
+    if(r.error) throw r.error;
+  }
+  async function docDel(id){
+    if(!ok) return;
+    var r=await sb.from('portal_docs').delete().eq('id',id);
+    if(r.error) throw r.error;
+  }
+
+  /* ── Status-Anzeige ── */
+  function mountBadge(){
+    if(badgeEl) return;
+    badgeEl=document.createElement('div');
+    badgeEl.id='ps-badge';
+    badgeEl.style.cssText='position:fixed;right:12px;bottom:12px;z-index:9000;font-family:Inter,sans-serif;'+
+      'font-size:11px;font-weight:500;padding:6px 11px;border-radius:20px;pointer-events:none;'+
+      'transition:opacity .3s,background .2s;opacity:0;';
+    document.body.appendChild(badgeEl);
+    setBadge(ok?'ok':'local');
+  }
+  function setBadge(kind,msg){
+    if(!badgeEl) return;
+    var cfg={
+      ok:      ['\u2601 Gespeichert','#E8F0E6','#3F7A38',1200],
+      pending: ['\u21BB Speichert\u2026','#F1F1F0','#6B7280',0],
+      local:   ['\u26A0 Nur lokal','#FCF2DD','#9A6B12',2600],
+      err:     ['\u26A0 Sync-Fehler','#FEE2E2','#DC2626',5000]
+    }[kind];
+    if(!cfg) return;
+    badgeEl.textContent=cfg[0]+(kind==='err'&&msg?': '+msg:'');
+    badgeEl.style.background=cfg[1];
+    badgeEl.style.color=cfg[2];
+    badgeEl.style.opacity='1';
+    clearTimeout(badgeEl._t);
+    if(cfg[3]) badgeEl._t=setTimeout(function(){ badgeEl.style.opacity='0'; }, cfg[3]);
+  }
+
+  /* ── Entscheidung bei Erststart / Konflikt ──
+     Gibt zurueck: {use:'cloud'|'local', push:bool}
+     Niemals automatisch lokale Daten ueber Cloud-Daten schreiben. */
+  function decide(remote, local, hasData, label){
+    var rHas = !!(remote && hasData(remote));
+    var lHas = !!(local  && hasData(local));
+
+    if(rHas && !lHas)  return Promise.resolve({use:'cloud', push:false, sync:true});
+    if(!rHas && !lHas) return Promise.resolve({use:'local', push:false, sync:true});  // frisch
+    if(rHas && lHas){
+      if(JSON.stringify(remote)===JSON.stringify(local))
+        return Promise.resolve({use:'cloud', push:false, sync:true});
+      return ask(label,
+        'Es gibt Daten in der Cloud <b>und</b> abweichende Daten auf diesem Ger\u00e4t.<br>Welche m\u00f6chtest du behalten?',
+        [{t:'\u2601 Cloud-Daten verwenden', v:{use:'cloud',push:false,sync:true}, primary:true},
+         {t:'\uD83D\uDCBB Ger\u00e4te-Daten hochladen', v:{use:'local',push:true,sync:true}}]);
+    }
+    // !rHas && lHas -> Erstmigration, aber nur nach Best\u00e4tigung
+    return ask(label,
+      'Auf diesem Ger\u00e4t liegen Daten, in der Cloud noch keine.<br>Jetzt in die Cloud \u00fcbertragen?',
+      [{t:'\u2601 Jetzt \u00fcbertragen', v:{use:'local',push:true,sync:true}, primary:true},
+       {t:'Sp\u00e4ter (nur lokal)', v:{use:'local',push:false,sync:false}}]);
+  }
+
+  function ask(label, msg, opts){
+    return new Promise(function(resolve){
+      var ov=document.createElement('div');
+      ov.style.cssText='position:fixed;inset:0;z-index:9500;background:rgba(17,24,39,.45);'+
+        'backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;';
+      var box=document.createElement('div');
+      box.style.cssText='background:#fff;border-radius:18px;max-width:440px;width:100%;padding:26px;'+
+        'box-shadow:0 24px 60px rgba(17,24,39,.28);font-family:Inter,sans-serif;';
+      var btns=opts.map(function(o,i){
+        return '<button data-i="'+i+'" style="'+
+          'width:100%;font-family:Inter,sans-serif;font-size:13.5px;font-weight:600;padding:12px;'+
+          'border-radius:11px;cursor:pointer;margin-top:8px;transition:all .13s;'+
+          (o.primary
+            ? 'background:#111827;color:#fff;border:none;'
+            : 'background:#fff;color:#6B7280;border:1.5px solid #E8E8E6;')+
+          '">'+o.t+'</button>';
+      }).join('');
+      box.innerHTML=
+        '<div style="font-family:DM Mono,monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;'+
+          'color:#9CA3AF;margin-bottom:9px;">'+label+'</div>'+
+        '<div style="font-size:17px;font-weight:700;letter-spacing:-.02em;color:#111827;margin-bottom:10px;">'+
+          'Daten abgleichen</div>'+
+        '<div style="font-size:13.5px;color:#6B7280;line-height:1.55;margin-bottom:16px;">'+msg+'</div>'+
+        btns+
+        '<div style="font-size:11px;color:#B8B8B5;margin-top:12px;text-align:center;line-height:1.5;">'+
+          'Es wird nichts gel\u00f6scht. Deine lokale Kopie bleibt erhalten.</div>';
+      ov.appendChild(box);
+      box.addEventListener('click',function(e){
+        var b=e.target.closest('button[data-i]');
+        if(!b)return;
+        var choice=opts[parseInt(b.getAttribute('data-i'))].v;
+        ov.remove();
+        resolve(choice);
+      });
+      document.body.appendChild(ov);
+    });
+  }
+
+  return {init:init, ready:ready, disable:disable, decide:decide, load:load, save:save, saveNow:saveNow,
+          docGet:docGet, docPut:docPut, docDel:docDel,
+          mountBadge:mountBadge, setBadge:setBadge};
+})();
+
 var SAVE_KEY = 'moov_lieferungen';
 var OLD_KEYS = ['moov_lief6','moov_lief5','moov_lief4','moov_lief3','moov_lief2','moov_lief'];
 
@@ -153,7 +322,8 @@ function loadState(){
     if(SEC[o.id+'_p']===undefined)SEC[o.id+'_p']=true;
   });
 }
-function sv(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(ST));}catch(e){}}
+function mirrorLocal(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(ST));}catch(e){}}
+function sv(){ mirrorLocal(); PS.save(SAVE_KEY,ST); }
 function uid(){return 'x'+Date.now()+Math.floor(Math.random()*9999);}
 function esc(t){return String(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function fd(d){if(!d)return'-';var p=d.split('-');return p.length===3?p[2]+'.'+p[1]+'.'+p[0]:d;}
@@ -169,7 +339,7 @@ function docTypeLabel(t){return{rechnung:'Rechnung',zoll:'Zollkosten',liefersche
 function docTypeCls(t){return{rechnung:'dt-r',zoll:'dt-z',lieferschein:'dt-l',sonstiges:'dt-s'}[t]||'dt-s';}
 // Doc storage (localStorage base64)
 function docStore(){try{return JSON.parse(localStorage.getItem('moov_docs_files')||'{}');}catch(e){return{};}}
-function docStoreSave(s){try{localStorage.setItem('moov_docs_files',JSON.stringify(s));}catch(e){alert('Speicher voll! Bitte Dokumente loeschen.');}}
+function docStoreSave(s){try{localStorage.setItem('moov_docs_files',JSON.stringify(s));}catch(e){/* Spiegel optional - Cloud ist die Quelle */}}
 
 // Click dispatcher
 document.addEventListener('click',function(e){
@@ -380,10 +550,15 @@ function openAddDoc(oid,did){
   if(btn){btn.textContent='Datei auswaehlen';btn.onclick=function(){document.getElementById('global-doc-input').click();};}
 }
 
-function viewDoc(attId){
-  var store=docStore();
-  var rec=store[attId];
-  if(!rec){alert('Datei nicht gefunden.');return;}
+async function viewDoc(attId){
+  var rec=null;
+  // 1) Cloud
+  if(PS.ready()){
+    try{ rec=await PS.docGet(attId); }catch(e){ console.error('docGet:',e.message); }
+  }
+  // 2) Lokaler Fallback
+  if(!rec){ var store=docStore(); rec=store[attId]||null; }
+  if(!rec||!rec.data){alert('Datei nicht gefunden.');return;}
   try{
     var byteStr=atob(rec.data);
     var arr=new Uint8Array(byteStr.length);
@@ -398,6 +573,7 @@ function viewDoc(attId){
 function deleteDoc(attId,oid,did){
   if(!confirm('Dokument loeschen?'))return;
   var store=docStore();delete store[attId];docStoreSave(store);
+  if(PS.ready()) PS.docDel(attId).catch(function(e){console.error('docDel:',e.message);});
   var d=fD(oid,did);
   if(d)d.attachments=d.attachments.filter(function(a){return a.id!==attId;});
   sv();render();
@@ -469,17 +645,29 @@ document.getElementById('global-doc-input').addEventListener('change',function()
       var b64=evt.target.result.split(',')[1];
       var attId=uid();
       var meta={id:attId,name:finalName,docType:docType,date:todayStr(),size:file.size,mimeType:file.type||'application/pdf'};
-      var store=docStore();
-      store[attId]={data:b64,mimeType:meta.mimeType};
-      docStoreSave(store);
       var d=fD(oid,did);
       if(!d){if(statusEl)statusEl.innerHTML='<span style="color:var(--red);">Lieferung nicht gefunden</span>';return;}
-      if(!d.attachments)d.attachments=[];
-      d.attachments.push(meta);
-      sv();
-      if(statusEl)statusEl.innerHTML='<span style="color:var(--green);">&#x2714; '+esc(meta.name)+' gespeichert!</span>';
-      var btn=document.getElementById('modal-save-btn');
-      if(btn){btn.textContent='Schliessen';btn.onclick=function(){closeModal();render();};}
+
+      var finish=function(){
+        if(!d.attachments)d.attachments=[];
+        d.attachments.push(meta);
+        sv();
+        if(statusEl)statusEl.innerHTML='<span style="color:var(--green);">&#x2714; '+esc(meta.name)+' gespeichert!</span>';
+        var btn=document.getElementById('modal-save-btn');
+        if(btn){btn.textContent='Schliessen';btn.onclick=function(){closeModal();render();};}
+      };
+
+      // Lokaler Spiegel (best effort - Quota kann voll sein)
+      try{ var store=docStore(); store[attId]={data:b64,mimeType:meta.mimeType}; docStoreSave(store); }catch(e){}
+
+      if(PS.ready()){
+        if(statusEl)statusEl.innerHTML='<span style="color:var(--amber);">Lade hoch...</span>';
+        PS.docPut(attId,b64,meta.mimeType).then(finish).catch(function(err){
+          if(statusEl)statusEl.innerHTML='<span style="color:var(--red);">Upload-Fehler: '+esc(err.message)+'</span>';
+        });
+      }else{
+        finish();
+      }
     }catch(err){if(statusEl)statusEl.innerHTML='<span style="color:var(--red);">Fehler: '+err.message+'</span>';}
     self.value='';
   });
@@ -487,9 +675,78 @@ document.getElementById('global-doc-input').addEventListener('change',function()
   reader.readAsDataURL(file);
 });
 
-loadState();
 initSectionOpen=function(){ST.orders.forEach(function(o){if(SEC[o.id+'_o']===undefined)SEC[o.id+'_o']=false;if(SEC[o.id+'_d']===undefined)SEC[o.id+'_d']=true;if(SEC[o.id+'_p']===undefined)SEC[o.id+'_p']=true;});};
-render();
+
+function hasRealLiefData(s){
+  return !!(s && Array.isArray(s.orders) && s.orders.some(function(o){
+    return (o.deliveries&&o.deliveries.length) || (o.ref&&o.ref!=='PF0037');
+  }));
+}
+
+(async function boot(){
+  PS.init();
+  PS.mountBadge();
+  loadState();               // fuellt ST aus localStorage (oder DEF)
+  var local=ST;
+  var remote=null, loadFailed=false;
+  if(PS.ready()){
+    try{ remote=await PS.load(SAVE_KEY); }
+    catch(e){ loadFailed=true; console.error('Laden fehlgeschlagen:',e.message); PS.setBadge('err',e.message); }
+  }
+  if(loadFailed){ PS.disable(); ST=local; }
+  else if(!PS.ready()){ ST=local; }
+  else {
+    var d=await PS.decide(remote, local, hasRealLiefData, 'Lieferungen');
+    ST = (d.use==='cloud' && remote) ? remote : local;
+    if(d.push){
+      try{
+        await PS.saveNow(SAVE_KEY,ST);
+        migrateLocalDocs();
+      }catch(e){ console.error('Upload fehlgeschlagen:',e.message); PS.disable(); }
+    }
+    if(d.sync===false) PS.disable();
+  }
+  if(!ST||!ST.orders) ST=JSON.parse(JSON.stringify(DEF));
+  ST.orders.forEach(function(o){
+    if(!o.deliveries)o.deliveries=[];
+    o.deliveries.forEach(function(dl){if(!dl.attachments)dl.attachments=[];});
+    if(SEC[o.id+'_o']===undefined)SEC[o.id+'_o']=false;
+    if(SEC[o.id+'_d']===undefined)SEC[o.id+'_d']=true;
+    if(SEC[o.id+'_p']===undefined)SEC[o.id+'_p']=true;
+  });
+  mirrorLocal();
+  render();
+})();
+
+/* Einmalige Migration: lokale base64-Dokumente in portal_docs schieben.
+   Nur Dateien, die tatsaechlich einer Lieferung zugeordnet sind (keine Waisen). */
+async function migrateLocalDocs(){
+  var local={};
+  try{ local=JSON.parse(localStorage.getItem('moov_docs_files')||'{}'); }catch(e){ return; }
+  // Referenzierte Attachment-IDs sammeln
+  var used={};
+  (ST.orders||[]).forEach(function(o){
+    (o.deliveries||[]).forEach(function(d){
+      (d.attachments||[]).forEach(function(a){ used[a.id]=true; });
+    });
+  });
+  var ids=Object.keys(local).filter(function(id){ return used[id]; });
+  var skipped=Object.keys(local).length-ids.length;
+  if(skipped) console.log('Verwaiste Dateien uebersprungen:', skipped);
+  if(!ids.length) return;
+  var done=0, failed=0;
+  for(var i=0;i<ids.length;i++){
+    var id=ids[i], rec=local[id];
+    if(!rec||!rec.data) continue;
+    try{
+      var exists=await PS.docGet(id);
+      if(!exists){ await PS.docPut(id, rec.data, rec.mimeType); }
+      done++;
+    }catch(e){ failed++; console.error('Doc-Migration '+id+':',e.message); }
+  }
+  console.log('Dokumente migriert: '+done+(failed?(' / Fehler: '+failed):''));
+  if(failed) alert('Achtung: '+failed+' Dokument(e) konnten nicht hochgeladen werden. Details in der Konsole.');
+}
 </script>
 </body>
 </html>
