@@ -282,6 +282,27 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
 
 #ps-badge{border-radius:20px;}
 
+/* Zahlungs-Erinnerung */
+.rembar{background:var(--sur);border-radius:14px;box-shadow:var(--sh);padding:13px 15px;margin-bottom:10px;
+  border-left:3px solid var(--amber);}
+.rem-head{font-size:12.5px;font-weight:600;color:var(--tx);margin-bottom:10px;}
+.rem-row{display:flex;gap:9px;flex-wrap:wrap;}
+.rembub{flex:1 1 200px;min-width:190px;text-align:left;cursor:pointer;
+  border:1px solid var(--bd);border-radius:12px;padding:10px 12px;background:var(--sur2);
+  font-family:'Inter',sans-serif;display:flex;flex-direction:column;gap:2px;transition:all .13s;}
+.rembub:hover{border-color:var(--ink);background:var(--sur);}
+.rembub.rem-late{background:var(--rsoft);border-color:transparent;}
+.rembub.rem-late:hover{border-color:var(--red);}
+.rembub.rem-urgent{background:var(--asoft);border-color:transparent;}
+.rembub.rem-urgent:hover{border-color:var(--amber);}
+.rb-when{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:.03em;font-weight:600;
+  text-transform:uppercase;color:var(--tx2);}
+.rembub.rem-late .rb-when{color:var(--red);}
+.rembub.rem-urgent .rb-when{color:var(--amber);}
+.rb-what{font-size:12px;font-weight:500;color:var(--tx);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rb-amt{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--tx);margin-top:1px;}
+.rem-more{font-size:11px;color:var(--tx3);margin-top:8px;}
+
 @media(max-width:1080px){
   .s4,.s5,.s7,.s8{grid-column:span 12;}
   .kpis{grid-template-columns:repeat(2,1fr);}
@@ -317,6 +338,7 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
     <button class="btn dark" onclick="openNew()">+ Bestellung</button>
   </div>
 
+  <div id="reminders"></div>
   <div class="kpis" id="kpis"></div>
 
   <div class="grid">
@@ -759,8 +781,51 @@ function render(){
   document.getElementById('today').textContent=fd(todayStr());
   var list=sortedOrders();
   if(!SEL||!fO(SEL))SEL=list.length?list[0].id:null;
-  renderKpis(); renderOrders(); renderDetail(); renderZplan();
+  renderReminder(); renderKpis(); renderOrders(); renderDetail(); renderZplan();
   renderTasks(); renderCash(); renderDocs(); renderPlan();
+}
+function renderReminder(){
+  var box=document.getElementById('reminders');if(!box)return;
+  var h=todayStr(),grenze=addDays(h,10);
+  var soon=[];
+  (ST.orders||[]).forEach(function(o){
+    allPays(o).forEach(function(e){
+      if(e.p.paidDate||!e.p.dueDate)return;
+      if(e.p.dueDate<=grenze){  // überfällig ODER in den nächsten 10 Tagen
+        soon.push({o:o,dl:e.dl,p:e.p,d:daysBetween(h,e.p.dueDate)});
+      }
+    });
+  });
+  if(!soon.length){box.innerHTML='';return;}
+  soon.sort(function(a,b){return a.d-b.d;});
+
+  var cur=(ST.orders[0]&&ST.orders[0].currency)||'EUR';
+  var sum=soon.reduce(function(s,x){return s+n2(x.p.amount);},0);
+  var anyLate=soon.some(function(x){return x.d<0;});
+
+  function phrase(d){
+    if(d<0)return 'überfällig · '+(-d)+' Tag'+(d===-1?'':'e');
+    if(d===0)return 'heute fällig';
+    if(d===1)return 'in 1 Tag';
+    return 'in '+d+' Tagen';
+  }
+
+  var bubbles=soon.slice(0,4).map(function(x){
+    var late=x.d<0, urgent=x.d>=0&&x.d<=3;
+    var cls=late?'rem-late':(urgent?'rem-urgent':'rem-soon');
+    return '<button class="rembub '+cls+'" onclick="selectOrder(\''+x.o.id+'\')">'+
+      '<span class="rb-when">'+(late?'⚠ ':'⏱ ')+'Zahlung '+phrase(x.d)+'</span>'+
+      '<span class="rb-what">'+esc(x.p.ref||'Zahlung')+' · '+esc(x.o.ref||x.o.name)+'</span>'+
+      '<span class="rb-amt">'+fa(x.p.amount,cur)+'</span></button>';
+  }).join('');
+  var more = soon.length>4
+    ? '<div class="rem-more">+ '+(soon.length-4)+' weitere · zusammen '+fa(sum,cur)+'</div>'
+    : '';
+
+  box.innerHTML='<div class="rembar">'+
+    '<div class="rem-head">'+(anyLate?'⚠ ':'')+
+      soon.length+' Zahlung'+(soon.length>1?'en':'')+' in den nächsten 10 Tagen · '+fa(sum,cur)+'</div>'+
+    '<div class="rem-row">'+bubbles+'</div>'+more+'</div>';
 }
 function renderKpis(){
   var soll=0,bez=0,off=0,ueb=0,nUeb=0,in30=0,n30=0,nextDel=null;
