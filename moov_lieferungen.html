@@ -594,7 +594,6 @@ var DOC_TYPES=[
   {id:'proforma',    label:'Proforma-Rechnung',        level:'order',    req:false, money:false},
   {id:'rechnung',    label:'Handelsrechnung',          level:'delivery', req:true,  money:false},
   {id:'evv',         label:'eVV Einfuhr (MWST)',       level:'delivery', req:true,  money:true},
-  {id:'ursprung',    label:'Ursprungserklärung',       level:'delivery', req:true,  money:true},
   {id:'zoll',        label:'Zoll-/Speditionsrechnung', level:'delivery', req:true,  money:false},
   {id:'lieferschein',label:'Lieferschein / Packliste', level:'delivery', req:false, money:false},
   {id:'cmr',         label:'CMR / Frachtbrief',        level:'delivery', req:false, money:false},
@@ -1428,8 +1427,9 @@ function openDoc(oid,did,dtype){
   var hint='';
   if(dtype==='evv')hint='<div class="hintbox">Die <b>elektronische Veranlagungsverfügung</b> bekommst du '+
     'vom Zoll bzw. deinem Spediteur. Ohne sie kannst du die bezahlte Einfuhrsteuer nicht als Vorsteuer zurückfordern.</div>';
-  if(dtype==='ursprung')hint='<div class="hintbox">Mit der <b>Ursprungserklärung</b> (oder EUR.1) zahlst du '+
-    'den Präferenzzoll statt des vollen Satzes. Steht oft direkt auf der Handelsrechnung.</div>';
+  if(dtype==='zoll')hint='<div class="hintbox">Auf der <b>Zoll-/Speditionsrechnung</b> bzw. dem beiliegenden '+
+    '<b>EUR.1</b> läuft der Präferenznachweis — damit zahlst du den Präferenzzoll statt des vollen Satzes. '+
+    'Prüfe, ob die Präferenz gewährt wurde.</div>';
   if(dtype==='labor')hint='<div class="hintbox">Der <b>Laborbericht</b> belegt die Zusammensetzung der Charge — '+
     'wichtig bei Reklamationen und Behördenanfragen.</div>';
   var o=fO(oid),dl=did?fD(oid,did):null;
