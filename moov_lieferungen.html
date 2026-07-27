@@ -750,9 +750,9 @@ function delDocs(o,dl){
   if(n2(dl.stk_ordered)<=0)return [];   // Dienstleistung: keine Zollpapiere
   var ang=istAngekommen(dl);
   return DOC_TYPES.filter(function(d){return d.level==='delivery';}).map(function(d){
-    var att=(dl.attachments||[]).find(function(a){return a.docType===d.id;});
-    return {t:d.id,label:d.label,req:d.req,money:d.money,att:att||null,
-            need:d.req&&ang, state:att?'y':((d.req&&ang)?'n':'o')};
+    var atts=(dl.attachments||[]).filter(function(a){return a.docType===d.id;});
+    return {t:d.id,label:d.label,req:d.req,money:d.money,atts:atts,
+            need:d.req&&ang, state:atts.length?'y':((d.req&&ang)?'n':'o')};
   });
 }
 function render(){
@@ -938,15 +938,21 @@ function delCard(o,dl,cur){
         '<div class="docs">'+docs.map(function(d){
           var icon=d.state==='y'?'<span class="dst y">&#x2713;</span>':
                    (d.state==='n'?'<span class="dst n">!</span>':'<span class="dst o">·</span>');
-          var sub=d.att?(esc(d.att.name)+' · '+Math.round((d.att.size||0)/1024)+' KB'):
-                  (d.need?(d.money?'Pflicht · Geld':'Pflicht'):'optional');
-          var act=d.att
-            ? '<span><button class="ib" onclick="viewDoc(\''+d.att.id+'\')">&#x2197;</button>'+
-              '<button class="ib del" onclick="rmDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.att.id+'\')">&#x2715;</button></span>'
-            : '<button class="ib" onclick="openDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')">+</button>';
-          return '<div class="drow'+(d.state==='n'?' miss':'')+(d.state==='o'?' opt':'')+'">'+icon+
-            '<span><span class="dl-n">'+esc(d.label)+'</span><br><span class="dl-s">'+sub+'</span></span>'+
-            act+'</div>';
+          var head='<div class="drow'+(d.state==='n'?' miss':'')+(d.state==='o'?' opt':'')+'">'+icon+
+            '<span><span class="dl-n">'+esc(d.label)+
+              (d.atts.length>1?' <span class="tag tg-grey">'+d.atts.length+'</span>':'')+'</span><br>'+
+              '<span class="dl-s">'+(d.atts.length?(d.atts.length+' Datei'+(d.atts.length>1?'en':'')):
+                (d.need?(d.money?'Pflicht · Geld':'Pflicht'):'optional'))+'</span></span>'+
+            '<button class="ib" onclick="openDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Datei hinzufügen">+</button></div>';
+          var files=d.atts.map(function(a){
+            return '<div class="drow" style="margin-left:26px;background:var(--sur)">'+
+              '<span class="dst o">&#x1F4C4;</span>'+
+              '<span><span class="dl-n">'+esc(a.name)+'</span><br>'+
+                '<span class="dl-s">'+Math.round((a.size||0)/1024)+' KB · '+fdShort(a.date)+'</span></span>'+
+              '<span><button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
+              '<button class="ib del" onclick="rmDoc(\''+o.id+'\',\''+dl.id+'\',\''+a.id+'\')">&#x2715;</button></span></div>';
+          }).join('');
+          return head+files;
         }).join('')+'</div>';
     }
     if(dl.bemerkung)body+='<div class="sect">Notiz</div><div style="font-size:11.5px;color:var(--tx2)">'+esc(dl.bemerkung)+'</div>';
@@ -1161,14 +1167,19 @@ function openOrder(oid){
     '<input class="fld" id="o_kond" value="'+esc(o.zahlungskonditionen||'')+'">'+
     '<div class="lbl">Dokumente · Bestellung</div>'+
     DOC_TYPES.filter(function(x){return x.level==='order';}).map(function(dt){
-      var att=(o.attachments||[]).find(function(a){return a.docType===dt.id;});
-      if(att) return '<div class="row have"><span class="rt">'+esc(dt.label)+
-        '<span class="rs">'+esc(att.name)+'</span></span>'+
-        '<button class="ib" onclick="viewDoc(\''+att.id+'\')">&#x2197;</button>'+
-        '<button class="ib del" onclick="rmDoc(\''+oid+'\',\'\',\''+att.id+'\')">&#x2715;</button></div>';
-      return '<div class="row'+(dt.req?' miss':'')+'"><span class="rt">'+esc(dt.label)+
-        '<span class="rs">'+(dt.req?'Pflicht':'optional')+'</span></span>'+
-        '<button class="ib" onclick="openDoc(\''+oid+'\',\'\',\''+dt.id+'\')">+</button><span></span></div>';
+      var atts=(o.attachments||[]).filter(function(a){return a.docType===dt.id;});
+      var head='<div class="row'+(atts.length?' have':(dt.req?' miss':''))+'">'+
+        '<span class="rt">'+esc(dt.label)+
+          (atts.length>1?' <span class="tag tg-grey">'+atts.length+'</span>':'')+
+          '<span class="rs">'+(atts.length?(atts.length+' Datei'+(atts.length>1?'en':'')):
+            (dt.req?'Pflicht':'optional'))+'</span></span>'+
+        '<button class="ib" onclick="openDoc(\''+oid+'\',\'\',\''+dt.id+'\')" title="hinzufügen">+</button><span></span></div>';
+      var files=atts.map(function(a){
+        return '<div class="row" style="margin-left:20px"><span class="rt">'+esc(a.name)+'</span>'+
+          '<button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
+          '<button class="ib del" onclick="rmDoc(\''+oid+'\',\'\',\''+a.id+'\')">&#x2715;</button></div>';
+      }).join('');
+      return head+files;
     }).join('')+
     '<div class="lbl">Zahlungen auf Bestellungs-Ebene</div>'+
     (o.payments||[]).map(function(p){
@@ -1426,44 +1437,78 @@ function openDoc(oid,did,dtype){
     '<div class="lbl">Zuordnung</div>'+
     '<div class="row"><span class="rt">'+esc(o?(o.ref||o.name):'')+
       (dl?' · '+esc(dl.name):' · Bestellung')+'</span><span></span><span></span></div>'+
-    '<div class="lbl">Datei</div>'+
+    '<div class="lbl">Datei(en) hinzufügen</div>'+
     '<div class="dropz" onclick="document.getElementById(\'docFile\').click()">'+
-      'PDF oder Bild auswählen</div>'+
-    '<input type="file" id="docFile" style="display:none" accept="application/pdf,image/*" '+
+      'PDF oder Bilder auswählen — mehrere möglich</div>'+
+    '<input type="file" id="docFile" multiple style="display:none" accept="application/pdf,image/*" '+
       'onchange="uploadDoc(this,\''+dtype+'\')">'+
-    '<div id="docStatus" style="margin-top:10px;font-size:12.5px"></div>';
+    '<div id="docStatus" style="margin-top:10px;font-size:12.5px"></div>'+
+    '<div id="docExisting" style="margin-top:6px"></div>';
   openOv('ovDoc');
+  renderDocModalList(dtype);
 }
 function uploadDoc(input,dtype){
-  var file=input.files&&input.files[0];if(!file)return;
+  var files=input.files?Array.prototype.slice.call(input.files):[];
+  if(!files.length)return;
   var st=document.getElementById('docStatus');
-  st.innerHTML='<span style="color:var(--amber)">Lade hoch…</span>';
-  var fr=new FileReader();
-  fr.addEventListener('load',function(ev){
-    var b64=String(ev.target.result).split(',')[1];
-    var attId=uid();
-    var meta={id:attId,name:file.name,docType:dtype,date:todayStr(),
-      size:file.size,mimeType:file.type||'application/pdf'};
-    var target=CUR.did?fD(CUR.oid,CUR.did):fO(CUR.oid);
-    if(!target){st.innerHTML='<span style="color:var(--red)">Ziel nicht gefunden.</span>';return;}
-    var finish=function(){
-      if(!Array.isArray(target.attachments))target.attachments=[];
-      target.attachments.push(meta);
+  if(!PS.ready()){
+    st.innerHTML='<span style="color:var(--red)">Keine Cloud-Verbindung — Datei nicht gespeichert.</span>';
+    return;
+  }
+  var target=CUR.did?fD(CUR.oid,CUR.did):fO(CUR.oid);
+  if(!target){st.innerHTML='<span style="color:var(--red)">Ziel nicht gefunden.</span>';return;}
+  if(!Array.isArray(target.attachments))target.attachments=[];
+
+  var done=0,failed=0,total=files.length;
+  st.innerHTML='<span style="color:var(--amber)">Lade '+total+' Datei'+(total>1?'en':'')+' hoch…</span>';
+
+  function one(file){
+    return new Promise(function(res){
+      var fr=new FileReader();
+      fr.addEventListener('load',function(ev){
+        var b64=String(ev.target.result).split(',')[1];
+        var attId=uid();
+        var meta={id:attId,name:file.name,docType:dtype,date:todayStr(),
+          size:file.size,mimeType:file.type||'application/pdf'};
+        PS.docPut(attId,b64,meta.mimeType).then(function(){
+          target.attachments.push(meta);done++;res();
+        }).catch(function(){failed++;res();});
+      });
+      fr.readAsDataURL(file);
+    });
+  }
+  // nacheinander hochladen, dann Zählung im Modal aktualisieren
+  files.reduce(function(p,f){return p.then(function(){return one(f);});},Promise.resolve())
+    .then(function(){
       sv();render();
-      st.innerHTML='<span style="color:var(--green)">&#x2714; '+esc(file.name)+' gespeichert</span>';
-      setTimeout(function(){
-        closeOv('ovDoc');
-        if(document.getElementById('ovDel').classList.contains('on'))openDelivery(CUR.oid,CUR.did);
-      },700);
-    };
-    if(PS.ready()){
-      PS.docPut(attId,b64,meta.mimeType).then(finish).catch(function(e){
-        st.innerHTML='<span style="color:var(--red)">Upload fehlgeschlagen: '+esc(e.message)+'</span>';});
-    }else{
-      st.innerHTML='<span style="color:var(--red)">Keine Cloud-Verbindung — Datei nicht gespeichert.</span>';
-    }
-  });
-  fr.readAsDataURL(file);
+      input.value='';
+      var have=target.attachments.filter(function(a){return a.docType===dtype;}).length;
+      st.innerHTML='<span style="color:var(--green)">&#x2714; '+done+' gespeichert'+
+        (failed?(' · <span style="color:var(--red)">'+failed+' fehlgeschlagen</span>'):'')+
+        ' — insgesamt '+have+' Datei'+(have>1?'en':'')+' bei diesem Dokument.</span>';
+      renderDocModalList(dtype);
+    });
+}
+/* Liste bereits hochgeladener Dateien im offenen Dokument-Modal */
+function renderDocModalList(dtype){
+  var box=document.getElementById('docExisting');if(!box)return;
+  var target=CUR.did?fD(CUR.oid,CUR.did):fO(CUR.oid);
+  var atts=(target&&target.attachments||[]).filter(function(a){return a.docType===dtype;});
+  if(!atts.length){box.innerHTML='';return;}
+  box.innerHTML='<div class="lbl">Bereits hochgeladen ('+atts.length+')</div>'+
+    atts.map(function(a){
+      return '<div class="row"><span class="rt">'+esc(a.name)+
+        '<span class="rs">'+Math.round((a.size||0)/1024)+' KB · '+fdShort(a.date)+'</span></span>'+
+        '<button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
+        '<button class="ib del" onclick="rmDocModal(\''+a.id+'\',\''+dtype+'\')">&#x2715;</button></div>';
+    }).join('');
+}
+function rmDocModal(attId,dtype){
+  if(!confirm('Diese Datei entfernen?'))return;
+  var target=CUR.did?fD(CUR.oid,CUR.did):fO(CUR.oid);
+  if(target)target.attachments=(target.attachments||[]).filter(function(a){return a.id!==attId;});
+  if(PS.ready())PS.docDel(attId).catch(function(e){console.error(e);});
+  sv();render();renderDocModalList(dtype);
 }
 async function viewDoc(attId){
   event&&event.stopPropagation&&event.stopPropagation();
@@ -1485,7 +1530,7 @@ function rmDoc(oid,did,attId){
   if(target)target.attachments=(target.attachments||[]).filter(function(a){return a.id!==attId;});
   if(PS.ready())PS.docDel(attId).catch(function(e){console.error(e);});
   sv();render();
-  
+  if(!did&&document.getElementById('ovOrd').classList.contains('on'))openOrder(oid);
 }
 
 /* ── Drag & Drop ── */
