@@ -311,6 +311,20 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
 .fsum{font-family:'DM Mono',monospace;font-size:11px;font-weight:600;margin-left:8px;
   letter-spacing:0;text-transform:none;}
 
+/* Zahlungs-Termine (nur Daten, keine Beträge) */
+.ztl{display:grid;grid-template-columns:52px 1fr auto;gap:10px;align-items:center;
+  padding:10px 16px;border-bottom:1px solid var(--bd);}
+.ztl:last-child{border-bottom:none;}
+.ztl:hover{background:var(--sur2);}
+.ztl.late{background:var(--rsoft);}
+.ztl-d{font-family:'DM Mono',monospace;font-size:11.5px;color:var(--tx2);}
+.ztl.late .ztl-d{color:var(--red);font-weight:600;}
+.ztl-b{min-width:0;}
+.ztl-t{font-size:12.5px;font-weight:500;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.ztl-s{font-size:11px;color:var(--tx3);}
+.rb-ref{font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:var(--tx);margin-top:1px;}
+.dl-done{opacity:.62;}
+
 @media(max-width:1080px){
   .s4,.s5,.s7,.s8{grid-column:span 12;}
   .kpis{grid-template-columns:repeat(2,1fr);}
@@ -353,39 +367,31 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
     <section class="panel s8">
       <div class="ph"><h2 id="dtHead">Bestellung</h2><span class="cnt" id="dtCnt"></span>
         <button class="act" onclick="toggleAllCards()" id="dtToggle">alle aufklappen</button></div>
-      <div class="pbody" id="detail" style="max-height:620px"></div>
+      <div class="pbody" id="detail" style="max-height:640px"></div>
     </section>
 
     <section class="panel s4">
       <div class="ph"><h2>Bestellungen</h2><span class="cnt" id="ordCnt">0</span>
         <button class="act" onclick="openNew()">+ neu</button></div>
       <div class="pbody" id="orders" style="max-height:250px"></div>
-      <div class="ph" style="border-top:1px solid var(--bd)"><h2>Was noch zu überweisen ist</h2></div>
-      <div class="pbody zp" id="zplan" style="max-height:352px"></div>
+      <div class="ph" style="border-top:1px solid var(--bd)"><h2>Zahlungs-Termine</h2>
+        <span class="cnt" id="zpCnt"></span></div>
+      <div class="pbody zp" id="zplan" style="max-height:350px"></div>
     </section>
 
     <section class="panel s12">
-      <div class="ph"><h2>Zu erledigen</h2><span class="cnt" id="taskCnt">0</span>
-        <button class="act" onclick="toggleAllTasks()" id="taskToggle">alle zeigen</button></div>
-      <div class="pbody" id="tasks" style="max-height:300px"></div>
-    </section>
-
-    <section class="panel s7">
-      <div class="ph"><h2>Was rausgeht</h2><span class="cnt">offene Zahlungen</span></div>
-      <div class="cf" id="cash"></div>
-    </section>
-
-    <section class="panel s5">
-      <div class="ph"><h2>Dokumente</h2><span class="cnt" id="docCnt"></span></div>
-      <div class="pbody" id="docs" style="max-height:300px"></div>
-    </section>
-
-    <section class="panel s12">
-      <div class="ph"><h2>Lieferplan</h2><span class="cnt">kommende Lieferungen</span></div>
+      <div class="ph"><h2>Wann kommt was an</h2><span class="cnt">Lieferplan nach Geschmack</span></div>
       <div class="pbody" id="plan"></div>
+    </section>
+
+    <section class="panel s12">
+      <div class="ph"><h2>Dokumente</h2><span class="cnt" id="docCnt"></span>
+        <span class="act" onclick="toggleDocView()" id="docToggle">nur fehlende</span></div>
+      <div class="pbody" id="docs" style="max-height:440px"></div>
     </section>
   </div>
 </div>
+<!-- entfernt: Cashflow-Panel und separates Zu-erledigen-Panel (Finanzen laufen im Excel) -->
 
 <div class="ov" id="ovOrd" onclick="bgClose(event,this)">
   <div class="mbox"><div class="mh"><h3 id="ordTitle">Bestellung</h3>
@@ -790,7 +796,7 @@ function render(){
   var list=sortedOrders();
   if(!SEL||!fO(SEL))SEL=list.length?list[0].id:null;
   renderReminder(); renderKpis(); renderOrders(); renderDetail(); renderZplan();
-  renderTasks(); renderCash(); renderDocs(); renderPlan();
+  renderDocs(); renderPlan();
 }
 function renderReminder(){
   var box=document.getElementById('reminders');if(!box)return;
@@ -807,8 +813,6 @@ function renderReminder(){
   if(!soon.length){box.innerHTML='';return;}
   soon.sort(function(a,b){return a.d-b.d;});
 
-  var cur=(ST.orders[0]&&ST.orders[0].currency)||'EUR';
-  var sum=soon.reduce(function(s,x){return s+n2(x.p.amount);},0);
   var anyLate=soon.some(function(x){return x.d<0;});
 
   function phrase(d){
@@ -821,49 +825,52 @@ function renderReminder(){
   var bubbles=soon.slice(0,4).map(function(x){
     var late=x.d<0, urgent=x.d>=0&&x.d<=3;
     var cls=late?'rem-late':(urgent?'rem-urgent':'rem-soon');
+    var ref=x.p.refNr?('<span class="rb-ref">'+esc(x.p.refNr)+'</span>'):'';
     return '<button class="rembub '+cls+'" onclick="selectOrder(\''+x.o.id+'\')">'+
       '<span class="rb-when">'+(late?'⚠ ':'⏱ ')+'Zahlung '+phrase(x.d)+'</span>'+
       '<span class="rb-what">'+esc(x.p.ref||'Zahlung')+' · '+esc(x.o.ref||x.o.name)+'</span>'+
-      '<span class="rb-amt">'+fa(x.p.amount,cur)+'</span></button>';
+      ref+'</button>';
   }).join('');
   var more = soon.length>4
-    ? '<div class="rem-more">+ '+(soon.length-4)+' weitere · zusammen '+fa(sum,cur)+'</div>'
+    ? '<div class="rem-more">+ '+(soon.length-4)+' weitere Zahlung'+(soon.length-4>1?'en':'')+'</div>'
     : '';
 
   box.innerHTML='<div class="rembar">'+
     '<div class="rem-head">'+(anyLate?'⚠ ':'')+
-      soon.length+' Zahlung'+(soon.length>1?'en':'')+' in den nächsten 10 Tagen · '+fa(sum,cur)+'</div>'+
+      soon.length+' Zahlung'+(soon.length>1?'en':'')+' in den nächsten 10 Tagen</div>'+
     '<div class="rem-row">'+bubbles+'</div>'+more+'</div>';
 }
 function renderKpis(){
-  var soll=0,bez=0,off=0,ueb=0,nUeb=0,in30=0,n30=0,nextDel=null;
-  var h=todayStr(),grenze=addDays(h,30);
+  var h=todayStr(),nextDel=null,nextPay=null,nUeb=0,docMiss=0,angekommen=0,gesamtDel=0;
   (ST.orders||[]).forEach(function(o){
-    var t=orderTotals(o);soll+=t.soll;bez+=t.bezahlt;off+=t.offen;ueb+=t.ueberfaellig;nUeb+=t.nUeber;
     allPays(o).forEach(function(e){
       if(e.p.paidDate||!e.p.dueDate)return;
-      if(e.p.dueDate>=h&&e.p.dueDate<=grenze){in30+=n2(e.p.amount);n30++;}
+      if(e.p.dueDate<h)nUeb++;
+      if(!nextPay||e.p.dueDate<nextPay.d)nextPay={d:e.p.dueDate,ref:e.p.ref,o:o,refNr:e.p.refNr};
     });
     (o.deliveries||[]).forEach(function(dl){
       if(dl.kind==='anzahlung')return;
+      gesamtDel++;
+      if(istAngekommen(dl))angekommen++;
       if(dl.deliveryDate&&dl.deliveryDate>=h){
-        if(!nextDel||dl.deliveryDate<nextDel.d)nextDel={d:dl.deliveryDate,stk:n2(dl.stk_ordered),ref:o.ref};
+        if(!nextDel||dl.deliveryDate<nextDel.d)nextDel={d:dl.deliveryDate,stk:n2(dl.stk_ordered),ref:o.ref,name:dl.name};
       }
     });
+    docMiss+=docStatus(o).missing.length;
   });
-  var pct=soll>0?(bez/soll*100):0;
-  var cur=(ST.orders&&ST.orders[0]&&ST.orders[0].currency)||'EUR';
   document.getElementById('kpis').innerHTML=
-    '<div class="k"><div class="kl">Offen gesamt</div><div class="kv">'+fa(off,cur)+'</div>'+
-      '<div class="ks">von '+fa(soll,cur)+' · '+pct.toFixed(0)+'% bezahlt</div></div>'+
-    '<div class="k '+(ueb>0?'alert':'ok')+'"><div class="kl">Überfällig</div>'+
-      '<div class="kv">'+(ueb>0?fa(ueb,cur):'—')+'</div>'+
-      '<div class="ks">'+(ueb>0?(nUeb+' Zahlung'+(nUeb>1?'en':'')):'nichts überfällig')+'</div></div>'+
-    '<div class="k warn"><div class="kl">Nächste 30 Tage</div><div class="kv">'+fa(in30,cur)+'</div>'+
-      '<div class="ks">'+n30+' Zahlung'+(n30===1?'':'en')+' fällig</div></div>'+
     '<div class="k ok"><div class="kl">Nächste Lieferung</div>'+
       '<div class="kv">'+(nextDel?fdShort(nextDel.d):'—')+'</div>'+
-      '<div class="ks">'+(nextDel?(fnum(nextDel.stk)+' Stk · '+esc(nextDel.ref)):'keine geplant')+'</div></div>';
+      '<div class="ks">'+(nextDel?(esc(nextDel.name)+' · '+fnum(nextDel.stk)+' Stk · '+esc(nextDel.ref)):'keine geplant')+'</div></div>'+
+    '<div class="k"><div class="kl">Nächste Zahlung</div>'+
+      '<div class="kv">'+(nextPay?fdShort(nextPay.d):'—')+'</div>'+
+      '<div class="ks">'+(nextPay?(esc(nextPay.ref||'Zahlung')+(nextPay.refNr?' · '+esc(nextPay.refNr):'')):'nichts offen')+'</div></div>'+
+    '<div class="k '+(nUeb>0?'alert':'ok')+'"><div class="kl">Überfällige Zahlungen</div>'+
+      '<div class="kv">'+(nUeb>0?nUeb:'0')+'</div>'+
+      '<div class="ks">'+(nUeb>0?'bitte prüfen':'alles im Termin')+'</div></div>'+
+    '<div class="k '+(docMiss>0?'warn':'ok')+'"><div class="kl">Dokumente offen</div>'+
+      '<div class="kv">'+docMiss+'</div>'+
+      '<div class="ks">'+(gesamtDel?(angekommen+' von '+gesamtDel+' Lieferungen da'):'—')+'</div></div>';
 }
 function renderOrders(){
   var a=sortedOrders();
@@ -871,21 +878,28 @@ function renderOrders(){
   if(!a.length){document.getElementById('orders').innerHTML=
     '<div class="empty">Noch keine Bestellung.<br><br>'+
     '<button class="btn dark" onclick="openNew()">+ Bestellung anlegen</button></div>';return;}
+  var h=todayStr();
   document.getElementById('orders').innerHTML=a.map(function(o){
-    var t=orderTotals(o),cur=o.currency||'EUR';
-    var nDel=(o.deliveries||[]).filter(function(d){return d.kind!=='anzahlung';}).length;
-    var tag = t.nUeber>0 ? '<span class="tag tg-late">'+t.nUeber+' überfällig</span>'
-            : (t.offen<=0 ? '<span class="tag tg-ok">bezahlt</span>'
-            : '<span class="tag tg-open">offen</span>');
-    var col = t.nUeber>0?'var(--red)':(t.offen<=0?'var(--green)':'var(--amber)');
+    var dels=(o.deliveries||[]).filter(function(d){return d.kind!=='anzahlung';});
+    var nDel=dels.length;
+    var ang=dels.filter(function(d){return istAngekommen(d);}).length;
+    var pct=nDel>0?(ang/nDel*100):0;
+    var ds=docStatus(o);
+    var t=orderTotals(o);
+    var tag = t.nUeber>0 ? '<span class="tag tg-late">'+t.nUeber+' Zahlung fällig</span>'
+            : (ds.missing.length>0 ? '<span class="tag tg-open">'+ds.missing.length+' Dok. fehlt</span>'
+            : '<span class="tag tg-ok">komplett</span>');
+    var col = t.nUeber>0?'var(--red)':(ds.missing.length>0?'var(--amber)':'var(--green)');
+    // nächste Ankunft
+    var next=null;
+    dels.forEach(function(d){if(d.deliveryDate&&d.deliveryDate>=h&&(!next||d.deliveryDate<next))next=d.deliveryDate;});
     return '<div class="ord'+(o.id===SEL?' sel':'')+'" draggable="'+(SORT==='manual')+'" '+
       'data-id="'+o.id+'" onclick="selectOrder(\''+o.id+'\')">'+
       '<span class="grip" onclick="event.stopPropagation()">'+(SORT==='manual'?'&#x283F;':'')+'</span>'+
       '<span><span class="n">'+esc(o.ref||o.name)+' '+tag+'</span>'+
-        '<span class="meta">'+nDel+' Lieferung'+(nDel===1?'':'en')+' · '+
-          fnum(o.totalUnits||0)+' Stk</span>'+
-        '<span class="pbar"><i style="width:'+Math.min(100,t.pct).toFixed(0)+'%;background:'+col+'"></i></span></span>'+
-      '<span class="r"><span class="tot">'+fa(t.offen,cur)+'</span></span></div>';
+        '<span class="meta">'+ang+'/'+nDel+' angekommen'+(next?' · nächste '+fdShort(next):'')+'</span>'+
+        '<span class="pbar"><i style="width:'+Math.min(100,pct).toFixed(0)+'%;background:'+col+'"></i></span></span>'+
+      '<span class="r"><span class="tot" style="font-size:11px;color:var(--tx3)">'+fnum(o.totalUnits||0)+' Stk</span></span></div>';
   }).join('');
   if(SORT==='manual')wireDrag();
 }
@@ -906,7 +920,7 @@ function renderDetail(){
   var head=document.getElementById('dtHead'),cnt=document.getElementById('dtCnt');
   if(!o){head.textContent='Bestellung';cnt.textContent='';
     document.getElementById('detail').innerHTML='<div class="empty">Links eine Bestellung wählen.</div>';return;}
-  var cur=o.currency||'EUR',t=orderTotals(o);
+  var cur=o.currency||'EUR';
   head.textContent=o.ref||o.name;
   var dels=(o.deliveries||[]).slice().sort(function(a,b){
     if(a.kind==='anzahlung'&&b.kind!=='anzahlung')return -1;
@@ -914,22 +928,25 @@ function renderDetail(){
     return String(a.deliveryDate||'9999').localeCompare(String(b.deliveryDate||'9999'));});
   cnt.textContent=dels.length+' Positionen';
 
-  var stkGel=dels.reduce(function(s,d){return s+n2(d.stk_received);},0);
-  var stkBes=dels.reduce(function(s,d){return s+n2(d.stk_ordered);},0);
+  var realDels=dels.filter(function(d){return d.kind!=='anzahlung';});
+  var stkGel=realDels.reduce(function(s,d){return s+n2(d.stk_received);},0);
+  var stkBes=realDels.reduce(function(s,d){return s+n2(d.stk_ordered);},0);
+  var ang=realDels.filter(function(d){return istAngekommen(d);}).length;
+  var ds=docStatus(o);
+  var offenePay=allPays(o).filter(function(e){return !e.p.paidDate;}).length;
 
   var h='<div class="dt-head">'+
     '<div class="dt-title">'+esc(o.ref||o.name)+
-      (t.nUeber>0?' <span class="tag tg-late">'+t.nUeber+' überfällig</span>':'')+
       ' <button class="btn xs" onclick="renameOrder(\''+o.id+'\')">Umbenennen</button>'+
       ' <button class="btn xs" onclick="openOrder(\''+o.id+'\')">Bearbeiten</button></div>'+
     '<div class="dt-sub">'+esc(o.supplier||'')+
-      (o.unitPrice?' · '+fnum(o.totalUnits)+' Stk × '+fa(o.unitPrice,cur):'')+
+      (o.totalUnits?' · '+fnum(o.totalUnits)+' Stk':'')+
       (o.zahlungskonditionen?'<br>'+esc(o.zahlungskonditionen):'')+'</div>'+
     '<div class="dt-stats">'+
-      '<div class="dt-stat"><div class="l">Auftragswert</div><div class="v">'+fa(t.soll,cur)+'</div></div>'+
-      '<div class="dt-stat"><div class="l">Bezahlt</div><div class="v g">'+fa(t.bezahlt,cur)+'</div></div>'+
-      '<div class="dt-stat"><div class="l">Offen</div><div class="v'+(t.offen>0?' r':'')+'">'+fa(t.offen,cur)+'</div></div>'+
+      '<div class="dt-stat"><div class="l">Lieferungen</div><div class="v">'+ang+' / '+realDels.length+' da</div></div>'+
       '<div class="dt-stat"><div class="l">Wareneingang</div><div class="v">'+fnum(stkGel)+' / '+fnum(stkBes)+'</div></div>'+
+      '<div class="dt-stat"><div class="l">Offene Zahlungen</div><div class="v'+(offenePay>0?'':' g')+'">'+offenePay+'</div></div>'+
+      '<div class="dt-stat"><div class="l">Dokumente</div><div class="v'+(ds.missing.length>0?' r':' g')+'">'+ds.have+' / '+ds.need+'</div></div>'+
     '</div></div>';
 
   h+=dels.map(function(dl){return delCard(o,dl,cur);}).join('');
@@ -938,8 +955,11 @@ function renderDetail(){
 }
 function delCard(o,dl,cur){
   var t=delTotals(dl),open=!!OPENC[dl.id];
+  var ang=istAngekommen(dl);
+  var offenePay=(dl.payments||[]).filter(function(p){return !p.paidDate;});
+  var latePay=offenePay.some(function(p){return p.dueDate&&p.dueDate<todayStr();});
   var cls = dl.kind==='anzahlung' ? 'anz'
-          : (t.late>0 ? 'late' : (t.offen<=0&&t.soll>0 ? 'paid' : 'part'));
+          : (ang ? 'paid' : (latePay?'late':'part'));
   var docs=delDocs(o,dl);
   var missing=docs.filter(function(d){return d.state==='n';}).length;
   var haveN=docs.filter(function(d){return d.state==='y';}).length;
@@ -947,18 +967,26 @@ function delCard(o,dl,cur){
 
   var badges='';
   if(dl.kind==='anzahlung')badges+='<span class="tag tg-info">Anzahlung</span>';
-  if(t.soll>0&&t.offen<=0)badges+='<span class="tag tg-ok">Bezahlt</span>';
-  else if(t.late>0)badges+='<span class="tag tg-late">Überfällig</span>';
-  else if(t.bez>0)badges+='<span class="tag tg-open">Teilweise</span>';
+  else if(ang)badges+='<span class="tag tg-ok">Angekommen</span>';
+  else if(dl.deliveryDate&&dl.deliveryDate<todayStr())badges+='<span class="tag tg-late">überfällig</span>';
+  else badges+='<span class="tag tg-open">erwartet</span>';
   if(n2(dl.stk_ordered)>0)badges+='<span class="tag tg-grey">'+fnum(dl.stk_received)+'/'+fnum(dl.stk_ordered)+'</span>';
+  if(offenePay.length>0)badges+='<span class="tag '+(latePay?'tg-late':'tg-open')+'">'+offenePay.length+' Zahlung offen</span>';
   if(missing>0)badges+='<span class="tag tg-late">'+missing+' Dok. fehlt</span>';
   else if(reqN>0&&dl.kind!=='anzahlung')badges+='<span class="tag tg-ok">Dok. ✓</span>';
 
   var meta=[];
-  if(dl.deliveryDate)meta.push(fd(dl.deliveryDate));
+  if(dl.deliveryDate)meta.push((ang?'':'geplant ')+fd(dl.deliveryDate));
   if(n2(dl.stk_ordered)>0)meta.push(fnum(dl.stk_ordered)+' Stk');
-  if(n2(dl.netPrice)>0)meta.push('Netto '+fa(dl.netPrice,cur));
   if(dl.rechnungNr)meta.push('Rg. '+esc(dl.rechnungNr));
+
+  // Kopf-Anzeige rechts: nächster Termin statt Betrag
+  var headRight='';
+  if(!ang&&dl.deliveryDate)headRight=fdShort(dl.deliveryDate);
+  else if(offenePay.length){
+    var nx=offenePay.slice().sort(function(a,b){return String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'));})[0];
+    if(nx.dueDate)headRight='zahlen '+fdShort(nx.dueDate);
+  }
 
   var body='';
   if(open){
@@ -970,15 +998,14 @@ function delCard(o,dl,cur){
         '<div class="we-s">'+fnum(dl.stk_received)+' von '+fnum(dl.stk_ordered)+' Stk ('+pct.toFixed(0)+'%)</div></div>'+
         '<button class="btn sm" onclick="bookIn(\''+o.id+'\',\''+dl.id+'\')">Eingang buchen</button></div>';
     }
+    // Termine + logistische Infos (ohne Beträge)
     body+='<div class="chips">';
-    if(n2(dl.netPrice)>0)body+='<span class="chip">Netto <b>'+fa(dl.netPrice,cur)+'</b></span>';
-    if(n2(dl.shippingCost)>0)body+='<span class="chip">Versand <b>'+fa(dl.shippingCost,cur)+'</b>'+
-      (dl.shippingPayer==='svz'?' <span class="tag tg-info">SVZ</span>':'')+'</span>';
-    if(n2(dl.verpackungEUR)>0)body+='<span class="chip">Verpackung <b>'+fa(dl.verpackungEUR,cur)+'</b></span>';
-    if(n2(dl.rechnungsbetragEUR)>0)body+='<span class="chip">Rechnung <b>'+fa(dl.rechnungsbetragEUR,cur)+'</b></span>';
+    if(dl.shipDate)body+='<span class="chip">Versand <b>'+fdShort(dl.shipDate)+'</b></span>';
+    if(dl.deliveryDate)body+='<span class="chip">'+(ang?'Erhalten':'Erwartet')+' <b>'+fdShort(dl.deliveryDate)+'</b></span>';
     if(dl.gewichtBrutto)body+='<span class="chip">Brutto <b>'+fnum(dl.gewichtBrutto)+' kg</b></span>';
     if(dl.paletten)body+='<span class="chip">Paletten <b>'+dl.paletten+'</b></span>';
     if(dl.incoterm)body+='<span class="chip">'+esc(dl.incoterm)+'</span>';
+    if(n2(dl.shippingCost)>0&&dl.shippingPayer==='svz')body+='<span class="chip">Versand zahlt SVZ</span>';
     body+='</div>';
 
     if((dl.flavors||[]).length){
@@ -991,14 +1018,13 @@ function delCard(o,dl,cur){
       body+='<div class="sect">Verzollung</div><div class="chips">'+
         '<span class="chip">eVV <b>'+esc(dl.evvNummer)+'</b></span>'+
         (dl.spediteur?'<span class="chip">'+esc(dl.spediteur)+'</span>':'')+
-        (dl.einfuhrsteuerCHF!=null?'<span class="chip">Einfuhrsteuer <b>CHF '+fnum(dl.einfuhrsteuerCHF)+'</b></span>':'')+
-        (dl.zollCHF!=null?'<span class="chip">Zoll <b>CHF '+fnum(dl.zollCHF)+'</b></span>':'')+
         '<span class="chip">'+(dl.praeferenz?'Präferenz ✓':'<span style="color:var(--red)">Präferenz ✗</span>')+'</span>'+
         '</div>';
     }
 
-    body+='<div class="sect">Zahlungen<span class="r">'+
-      '<button class="btn xs" onclick="addPaymentTo(\''+o.id+'\',\''+dl.id+'\')">+ Zahlung</button></span></div>';
+    // Zahlungs-TERMINE (keine Beträge)
+    body+='<div class="sect">Zahlungs-Termine<span class="r">'+
+      '<button class="btn xs" onclick="addPaymentTo(\''+o.id+'\',\''+dl.id+'\')">+ Termin</button></span></div>';
     if((dl.payments||[]).length){
       body+='<div class="ptab">'+dl.payments.slice().sort(function(a,b){
         return String(a.dueDate||'').localeCompare(String(b.dueDate||''));
@@ -1011,10 +1037,10 @@ function delCard(o,dl,cur){
               (p.dueDate?('fällig '+fdShort(p.dueDate)):'Termin offen'))+'</span></span>'+
           '<span>'+(p.paidDate?'<span class="tag tg-ok">Bezahlt</span>':
             (late?'<span class="tag tg-late">Überfällig</span>':'<span class="tag tg-open">Offen</span>'))+'</span>'+
-          '<span class="pa">'+fa(p.amount,cur)+'</span>'+
+          (p.paidDate?'':'<button class="btn xs" onclick="markPaid(\''+o.id+'\',\''+dl.id+'\',\''+p.id+'\')">Bezahlt</button>')+
           '<button class="ib" onclick="openPayment(\''+o.id+'\',\''+dl.id+'\',\''+p.id+'\')">&#x270F;</button></div>';
       }).join('')+'</div>';
-    } else body+='<div class="empty" style="padding:12px">Keine Zahlung erfasst.</div>';
+    } else body+='<div class="empty" style="padding:12px">Kein Zahlungstermin erfasst.</div>';
 
     if(dl.kind!=='anzahlung'){
       body+='<div class="sect">Dokumente <span style="color:var(--tx3)">'+haveN+'/'+reqN+' Pflicht</span></div>'+
@@ -1025,7 +1051,7 @@ function delCard(o,dl,cur){
             '<span><span class="dl-n">'+esc(d.label)+
               (d.atts.length>1?' <span class="tag tg-grey">'+d.atts.length+'</span>':'')+'</span><br>'+
               '<span class="dl-s">'+(d.atts.length?(d.atts.length+' Datei'+(d.atts.length>1?'en':'')):
-                (d.need?(d.money?'Pflicht · Geld':'Pflicht'):'optional'))+'</span></span>'+
+                (d.need?'Pflicht':'optional'))+'</span></span>'+
             '<button class="ib" onclick="openDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Datei hinzufügen">+</button></div>';
           var files=d.atts.map(function(a){
             return '<div class="drow" style="margin-left:26px;background:var(--sur)">'+
@@ -1050,7 +1076,7 @@ function delCard(o,dl,cur){
     '<div class="dc-head" onclick="toggleCard(\''+dl.id+'\')">'+
       '<span><span class="dc-n">'+esc(dl.name)+' '+badges+'</span>'+
         '<span class="dc-m">'+meta.join(' · ')+'</span></span>'+
-      '<span class="dc-a">'+fa(t.soll,cur)+'</span>'+
+      '<span class="dc-a" style="font-size:11px;color:var(--tx3)">'+headRight+'</span>'+
       '<button class="dc-x">'+(open?'&#x25B2;':'&#x25BC;')+'</button>'+
     '</div>'+body+'</div>';
 }
@@ -1090,97 +1116,56 @@ function delDeliveryFrom(oid,did){
 
 /* ══ ZAHLUNGSPLAN ══ */
 function renderZplan(){
-  var h=todayStr(),html='';
-  sortedOrders().forEach(function(o){
-    var cur=o.currency||'EUR';
-    var offen=allPays(o).filter(function(e){return !e.p.paidDate;});
-    var t=orderTotals(o);
-    if(!offen.length&&t.offen<=0)return;
-    offen.sort(function(a,b){return String(a.p.dueDate||'9999').localeCompare(String(b.p.dueDate||'9999'));});
-    var col=t.nUeber>0?'var(--red)':(t.offen<=0?'var(--green)':'var(--amber)');
-    html+='<div class="zp-o"><div class="zp-h"><span class="n">'+esc(o.ref||o.name)+'</span>'+
-      '<span class="a">'+fa(t.offen,cur)+'</span></div>'+
-      '<div class="zp-bar"><i style="width:'+Math.min(100,t.pct).toFixed(0)+'%;background:'+col+'"></i></div>'+
-      offen.slice(0,7).map(function(e){
-        var late=e.p.dueDate&&e.p.dueDate<h;
-        return '<div class="zp-r'+(late?' late':'')+'">'+
-          '<span class="d">'+(e.p.dueDate?fdShort(e.p.dueDate):'offen')+'</span>'+
-          '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+
-            esc(e.p.ref||'Zahlung')+(e.dl?' · '+esc(e.dl.name):'')+'</span>'+
-          '<span class="m">'+fa(e.p.amount,cur)+'</span></div>';
-      }).join('')+
-      (offen.length>7?'<div class="zp-r"><span class="d"></span><span style="color:var(--tx3)">+ '+
-        (offen.length-7)+' weitere</span><span class="m"></span></div>':'')+
-    '</div>';
-  });
-  document.getElementById('zplan').innerHTML=html||'<div class="empty">Nichts offen.</div>';
-}
-
-function renderTasks(){
-  var all=openTasks();
-  var list=SHOW_ALL_TASKS?all:all.slice(0,7);
-  document.getElementById('taskCnt').textContent=all.length;
-  var tt=document.getElementById('taskToggle');
-  if(tt){tt.textContent=SHOW_ALL_TASKS?'weniger':('alle '+all.length+' zeigen');
-    tt.style.display=all.length>7?'':'none';}
-  if(!all.length){document.getElementById('tasks').innerHTML=
-    '<div class="empty">Nichts offen. Alle Zahlungen erledigt.</div>';return;}
-  document.getElementById('tasks').innerHTML=list.map(function(t){
-    var cur=t.o.currency||'EUR';
-    var sub=(t.dl?esc(t.dl.name)+' · ':'')+esc(t.o.ref||t.o.name);
-    var extra='';
-    if(t.late&&t.p.dueDate)extra=' · '+daysBetween(t.p.dueDate,todayStr())+' Tage';
-    return '<div class="task'+(t.late?' late':'')+'">'+
-      '<span class="d">'+fdShort(t.p.dueDate)+'</span>'+
-      '<span><span class="t">'+esc(t.p.ref||'Zahlung')+
-        (t.p.refNr?' <span class="tag tg-grey">'+esc(t.p.refNr)+'</span>':'')+'</span>'+
-        '<span class="sub">'+sub+extra+'</span></span>'+
-      '<span class="amt">'+fa(t.p.amount,cur)+'</span>'+
-      '<button class="btn sm" onclick="markPaid(\''+t.o.id+'\',\''+(t.dl?t.dl.id:'')+'\',\''+t.p.id+'\')">Bezahlt</button>'+
-    '</div>';
-  }).join('');
-}
-function renderCash(){
-  var h=todayStr(),buckets={},cur='EUR';
+  var h=todayStr(),rows=[];
   (ST.orders||[]).forEach(function(o){
-    cur=o.currency||cur;
     allPays(o).forEach(function(e){
-      if(e.p.paidDate||!e.p.dueDate)return;
-      var k=e.p.dueDate.slice(0,7);
-      buckets[k]=(buckets[k]||0)+n2(e.p.amount);
+      if(e.p.paidDate)return;
+      rows.push({o:o,dl:e.dl,p:e.p,late:!!(e.p.dueDate&&e.p.dueDate<h)});
     });
   });
-  var keys=Object.keys(buckets).sort();
-  if(!keys.length){document.getElementById('cash').innerHTML=
-    '<div class="empty">Keine offenen Zahlungen mit Termin.</div>';return;}
-  var max=Math.max.apply(null,keys.map(function(k){return buckets[k];}));
-  var M=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-  document.getElementById('cash').innerHTML=keys.map(function(k){
-    var p=k.split('-'),lbl=M[parseInt(p[1],10)-1]+' '+p[0].slice(2);
-    var hot=k<=h.slice(0,7);
-    return '<div class="cfrow"><span class="cfm">'+lbl+'</span>'+
-      '<span class="cftrack"><i class="'+(hot?'hot':'')+'" style="width:'+
-        (buckets[k]/max*100).toFixed(0)+'%"></i></span>'+
-      '<span class="cfv">'+n2(buckets[k]).toLocaleString('de-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+'</span></div>';
+  rows.sort(function(a,b){
+    if(a.late!==b.late)return a.late?-1:1;
+    return String(a.p.dueDate||'9999').localeCompare(String(b.p.dueDate||'9999'));
+  });
+  var cnt=document.getElementById('zpCnt');if(cnt)cnt.textContent=rows.length?rows.length:'';
+  if(!rows.length){document.getElementById('zplan').innerHTML=
+    '<div class="empty">Keine offenen Zahlungen.</div>';return;}
+  document.getElementById('zplan').innerHTML=rows.map(function(r){
+    var p=r.p;
+    return '<div class="ztl'+(r.late?' late':'')+'">'+
+      '<span class="ztl-d">'+(p.dueDate?fdShort(p.dueDate):'offen')+'</span>'+
+      '<span class="ztl-b"><span class="ztl-t">'+esc(p.ref||'Zahlung')+
+        (p.refNr?' <span class="tag tg-grey">'+esc(p.refNr)+'</span>':'')+'</span>'+
+        '<span class="ztl-s">'+(r.dl?esc(r.dl.name)+' · ':'')+esc(r.o.ref||r.o.name)+
+        (r.late&&p.dueDate?' · '+daysBetween(p.dueDate,h)+' Tage':'')+'</span></span>'+
+      '<button class="btn xs" onclick="markPaid(\''+r.o.id+'\',\''+(r.dl?r.dl.id:'')+'\',\''+p.id+'\')">Bezahlt</button>'+
+    '</div>';
   }).join('');
 }
+var DOC_ONLY_MISSING=true;
+function toggleDocView(){DOC_ONLY_MISSING=!DOC_ONLY_MISSING;
+  var t=document.getElementById('docToggle');if(t)t.textContent=DOC_ONLY_MISSING?'nur fehlende':'alle zeigen';
+  renderDocs();}
 function renderDocs(){
   var a=sortedOrders(),totalMiss=0;
-  var html=a.map(function(o){
+  var blocks=a.map(function(o){
     var d=docStatus(o);totalMiss+=d.missing.length;
+    if(DOC_ONLY_MISSING&&d.missing.length===0)return '';
     var pct=d.need>0?(d.have/d.need*100):100;
     var chips=d.missing.length
-      ? d.missing.slice(0,4).map(function(m){
+      ? d.missing.map(function(m){
           return '<span class="dchip" onclick="openDoc(\''+o.id+'\',\''+
             (m.dlId||'')+'\',\''+m.t+'\')">'+esc(m.label)+' · '+esc(m.scope)+'</span>';
-        }).join('')+(d.missing.length>4?'<span class="dchip" onclick="selectOrder(\''+o.id+'\')">+'+(d.missing.length-4)+' weitere</span>':'')
-      : '<span class="dchip ok">vollständig</span>';
+        }).join('')
+      : '<span class="dchip ok">alle Pflichtdokumente vorhanden</span>';
     return '<div class="doc"><div class="doch"><span class="nm">'+esc(o.ref||o.name)+'</span>'+
-      '<span class="ct">'+d.have+' / '+d.need+'</span></div>'+
+      '<span class="ct">'+d.have+' / '+d.need+' Pflicht</span>'+
+      '<button class="btn xs" style="margin-left:8px" onclick="selectOrder(\''+o.id+'\')">öffnen</button></div>'+
       '<div class="dbar"><i style="width:'+pct.toFixed(0)+'%"></i></div>'+
       '<div class="dmiss">'+chips+'</div></div>';
-  }).join('');
-  document.getElementById('docs').innerHTML=html||'<div class="empty">Keine Bestellungen.</div>';
+  }).filter(Boolean).join('');
+  if(!blocks)blocks='<div class="empty">Alle Pflichtdokumente vollständig. 🎉</div>';
+  document.getElementById('docs').innerHTML=blocks;
   document.getElementById('docCnt').textContent=totalMiss?(totalMiss+' fehlen'):'vollständig';
 }
 function renderPlan(){
@@ -1188,15 +1173,15 @@ function renderPlan(){
   (ST.orders||[]).forEach(function(o){
     (o.deliveries||[]).forEach(function(dl){
       if(dl.kind==='anzahlung')return;
-      if(!dl.deliveryDate||dl.deliveryDate<h)return;
+      if(n2(dl.stk_ordered)<=0)return;
       rows.push({o:o,dl:dl});
     });
   });
-  rows.sort(function(a,b){return a.dl.deliveryDate.localeCompare(b.dl.deliveryDate);});
+  rows.sort(function(a,b){return String(a.dl.deliveryDate||'9999').localeCompare(String(b.dl.deliveryDate||'9999'));});
   if(!rows.length){document.getElementById('plan').innerHTML=
-    '<div class="empty">Keine kommenden Lieferungen.</div>';return;}
+    '<div class="empty">Keine Lieferungen erfasst.</div>';return;}
   document.getElementById('plan').innerHTML=rows.map(function(r){
-    var dl=r.dl,tot=n2(dl.stk_ordered)||1;
+    var dl=r.dl,tot=n2(dl.stk_ordered)||1,ang=istAngekommen(dl);
     var fl=(dl.flavors||[]).filter(function(f){return n2(f.qty)>0;});
     var stack = fl.length
       ? fl.map(function(f){
@@ -1204,18 +1189,18 @@ function renderPlan(){
             Math.max(7,(n2(f.qty)/tot*100)).toFixed(1)+'%">'+esc(f.name.slice(0,3))+' '+fnum(f.qty)+'</span>';
         }).join('')
       : '<span class="f-x" style="width:100%">'+fnum(dl.stk_ordered)+' Stk</span>';
-    var late = dl.shipDate && dl.deliveryDate && dl.deliveryDate>dl.shipDate
-      ? '<span class="tag tg-info">verschoben</span>' : '';
-    return '<div class="dl" style="cursor:pointer" onclick="selectOrder(\''+r.o.id+'\')">'+
+    var status = ang ? '<span class="tag tg-ok">angekommen</span>'
+      : (dl.deliveryDate&&dl.deliveryDate<h ? '<span class="tag tg-late">überfällig</span>'
+      : (dl.shipDate&&dl.deliveryDate&&dl.deliveryDate>dl.shipDate?'<span class="tag tg-info">verschoben</span>':'<span class="tag tg-open">erwartet</span>'));
+    return '<div class="dl'+(ang?' dl-done':'')+'" style="cursor:pointer" onclick="selectOrder(\''+r.o.id+'\')">'+
       '<span class="d">'+fdShort(dl.deliveryDate)+'</span>'+
       '<span class="stack">'+stack+'</span>'+
-      '<span>'+esc(r.o.ref||'')+' '+late+'</span></div>';
+      '<span>'+esc(r.o.ref||'')+' · '+esc(dl.name)+' '+status+'</span></div>';
   }).join('');
 }
 
 /* ══════════ AKTIONEN ══════════ */
 function setSort(v){SORT=v;render();}
-function toggleAllTasks(){SHOW_ALL_TASKS=!SHOW_ALL_TASKS;renderTasks();}
 function markPaid(oid,did,pid){
   event.stopPropagation();
   var o=fO(oid);if(!o)return;
@@ -1265,12 +1250,12 @@ function openOrder(oid){
       }).join('');
       return head+files;
     }).join('')+
-    '<div class="lbl">Zahlungen auf Bestellungs-Ebene</div>'+
+    '<div class="lbl">Zahlungs-Termine auf Bestellungs-Ebene</div>'+
     (o.payments||[]).map(function(p){
       return '<div class="row" style="cursor:pointer" onclick="openPayment(\''+oid+'\',\'\',\''+p.id+'\')">'+
         '<span class="rt">'+esc(p.ref||'Zahlung')+'<span class="rs">'+
-        (p.paidDate?('bezahlt '+fdShort(p.paidDate)):'offen')+'</span></span>'+
-        '<span class="ra">'+fa(p.amount,cur)+'</span><span class="ib">&#x203A;</span></div>';
+        (p.paidDate?('bezahlt '+fdShort(p.paidDate)):(p.dueDate?('fällig '+fdShort(p.dueDate)):'offen'))+'</span></span>'+
+        '<span class="ra">'+(p.refNr?esc(p.refNr):'')+'</span><span class="ib">&#x203A;</span></div>';
     }).join('')+
     '<button class="btn sm" style="margin-top:8px" onclick="addPayment(\''+oid+'\')">+ Zahlung</button>';
   openOv('ovOrd');
@@ -1501,13 +1486,11 @@ function openPayment(oid,did,pid){
     '<div class="lbl">Referenz / Verwendungszweck</div>'+
     '<input class="fld" id="p_refnr" placeholder="z.B. PF0037.04" value="'+esc(p.refNr||'')+'">'+
     '<div class="frow" style="margin-top:12px">'+
-      '<div><div class="lbl" style="margin-top:0">Betrag</div>'+
-        '<input class="fld" id="p_amt" value="'+(p.amount||'')+'"></div>'+
       '<div><div class="lbl" style="margin-top:0">Fällig am</div>'+
-        '<input class="fld" type="date" id="p_due" value="'+esc(p.dueDate||'')+'"></div></div>'+
-    '<div class="lbl">Bezahlt am</div>'+
-    '<input class="fld" type="date" id="p_paid" value="'+esc(p.paidDate||'')+'">'+
-    '<div class="rs" style="font-size:11px;color:var(--tx3);margin-top:5px">Leer lassen = noch offen.</div>'+
+        '<input class="fld" type="date" id="p_due" value="'+esc(p.dueDate||'')+'"></div>'+
+      '<div><div class="lbl" style="margin-top:0">Bezahlt am</div>'+
+        '<input class="fld" type="date" id="p_paid" value="'+esc(p.paidDate||'')+'"></div></div>'+
+    '<div class="rs" style="font-size:11px;color:var(--tx3);margin-top:5px">Bezahlt-Datum leer lassen = noch offen. Beträge pflegst du im Excel.</div>'+
     '<div class="lbl">Notiz</div><input class="fld" id="p_note" value="'+esc(p.notes||'')+'">';
   openOv('ovPay');
 }
@@ -1515,7 +1498,7 @@ function savePayment(){
   var o=fO(CUR.oid);if(!o)return;
   var list=CUR.did?(fD(CUR.oid,CUR.did)||{}).payments:o.payments;
   var p=(list||[]).find(function(x){return x.id===CUR.pid;});if(!p)return;
-  p.ref=val('p_ref');p.refNr=val('p_refnr');p.amount=n2(val('p_amt'));
+  p.ref=val('p_ref');p.refNr=val('p_refnr');
   p.dueDate=val('p_due');p.paidDate=val('p_paid');p.notes=val('p_note');
   if(p.paidDate&&!n2(p.amount_paid))p.amount_paid=n2(p.amount);
   if(!p.paidDate)p.amount_paid=0;
