@@ -303,6 +303,14 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
 .rb-amt{font-family:'DM Mono',monospace;font-size:13px;font-weight:600;color:var(--tx);margin-top:1px;}
 .rem-more{font-size:11px;color:var(--tx3);margin-top:8px;}
 
+/* Namens-Presets + Geschmack-Summe im Lieferungs-Modal */
+.chipsel{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.pchip{font-size:11px;padding:5px 11px;border-radius:20px;border:1px solid var(--bd);
+  background:var(--sur2);color:var(--tx2);cursor:pointer;font-family:'Inter',sans-serif;}
+.pchip:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
+.fsum{font-family:'DM Mono',monospace;font-size:11px;font-weight:600;margin-left:8px;
+  letter-spacing:0;text-transform:none;}
+
 @media(max-width:1080px){
   .s4,.s5,.s7,.s8{grid-column:span 12;}
   .kpis{grid-template-columns:repeat(2,1fr);}
@@ -882,6 +890,15 @@ function renderOrders(){
   if(SORT==='manual')wireDrag();
 }
 function selectOrder(id){SEL=id;OPENC={};render();}
+function renameOrder(id){
+  event&&event.stopPropagation&&event.stopPropagation();
+  var o=fO(id);if(!o)return;
+  var neu=prompt('Name der Bestellung:', o.ref||o.name||'');
+  if(neu===null)return;
+  neu=neu.trim();if(!neu)return;
+  o.ref=neu; if(!o.name)o.name=neu;
+  sv();render();
+}
 
 /* ══ DETAIL ══ */
 function renderDetail(){
@@ -903,6 +920,7 @@ function renderDetail(){
   var h='<div class="dt-head">'+
     '<div class="dt-title">'+esc(o.ref||o.name)+
       (t.nUeber>0?' <span class="tag tg-late">'+t.nUeber+' überfällig</span>':'')+
+      ' <button class="btn xs" onclick="renameOrder(\''+o.id+'\')">Umbenennen</button>'+
       ' <button class="btn xs" onclick="openOrder(\''+o.id+'\')">Bearbeiten</button></div>'+
     '<div class="dt-sub">'+esc(o.supplier||'')+
       (o.unitPrice?' · '+fnum(o.totalUnits)+' Stk × '+fa(o.unitPrice,cur):'')+
@@ -987,7 +1005,8 @@ function delCard(o,dl,cur){
       }).map(function(p){
         var late=!p.paidDate&&p.dueDate&&p.dueDate<todayStr();
         return '<div class="ptr'+(late?' late':(p.paidDate?' paid':''))+'">'+
-          '<span><span style="font-weight:500">'+esc(p.ref||'Zahlung')+'</span>'+
+          '<span><span style="font-weight:500">'+esc(p.ref||'Zahlung')+
+            (p.refNr?' <span class="tag tg-grey">'+esc(p.refNr)+'</span>':'')+'</span>'+
             '<span class="pd">'+(p.paidDate?('bezahlt '+fdShort(p.paidDate)):
               (p.dueDate?('fällig '+fdShort(p.dueDate)):'Termin offen'))+'</span></span>'+
           '<span>'+(p.paidDate?'<span class="tag tg-ok">Bezahlt</span>':
@@ -1113,7 +1132,8 @@ function renderTasks(){
     if(t.late&&t.p.dueDate)extra=' · '+daysBetween(t.p.dueDate,todayStr())+' Tage';
     return '<div class="task'+(t.late?' late':'')+'">'+
       '<span class="d">'+fdShort(t.p.dueDate)+'</span>'+
-      '<span><span class="t">'+esc(t.p.ref||'Zahlung')+'</span>'+
+      '<span><span class="t">'+esc(t.p.ref||'Zahlung')+
+        (t.p.refNr?' <span class="tag tg-grey">'+esc(t.p.refNr)+'</span>':'')+'</span>'+
         '<span class="sub">'+sub+extra+'</span></span>'+
       '<span class="amt">'+fa(t.p.amount,cur)+'</span>'+
       '<button class="btn sm" onclick="markPaid(\''+t.o.id+'\',\''+(t.dl?t.dl.id:'')+'\',\''+t.p.id+'\')">Bezahlt</button>'+
@@ -1369,11 +1389,17 @@ function openDelivery(oid,did){
   var flavRows=FLAVS.map(function(fn){
     var f=(dl.flavors||[]).find(function(x){return x.name===fn;});
     return '<div><div class="lbl" style="margin-top:0">'+fn+'</div>'+
-      '<input class="fld" id="d_f_'+fn+'" value="'+(f?n2(f.qty):'')+'" placeholder="0"></div>';
+      '<input class="fld f-in" id="d_f_'+fn+'" value="'+(f?n2(f.qty):'')+'" placeholder="0" '+
+      'inputmode="numeric" oninput="flavSum()"></div>';
   }).join('');
+  var presets=['Lieferung 1','Lieferung 2','Lieferung 3','Lieferung 4','Lieferung 5','Lieferung 6',
+               'Sonderlieferung Orange','Anzahlung Verpackung'];
   document.getElementById('delBody').innerHTML=
     '<div class="lbl">Bezeichnung</div>'+
     '<input class="fld" id="d_name" value="'+esc(dl.name||'')+'">'+
+    '<div class="chipsel">'+presets.map(function(p){
+      return '<button class="pchip" onclick="setDelName(\''+esc(p)+'\')">'+esc(p)+'</button>';
+    }).join('')+'</div>'+
     '<div class="frow" style="margin-top:12px">'+
       '<div><div class="lbl" style="margin-top:0">Versanddatum</div>'+
         '<input class="fld" type="date" id="d_ship" value="'+esc(dl.shipDate||'')+'"></div>'+
@@ -1381,12 +1407,14 @@ function openDelivery(oid,did){
         '<input class="fld" type="date" id="d_recv" value="'+esc(dl.deliveryDate||'')+'"></div></div>'+
     '<div class="frow" style="margin-top:10px">'+
       '<div><div class="lbl" style="margin-top:0">Stück bestellt</div>'+
-        '<input class="fld" id="d_stk" value="'+(dl.stk_ordered||'')+'"></div>'+
+        '<input class="fld" id="d_stk" value="'+(dl.stk_ordered||'')+'" inputmode="numeric" oninput="flavSum()"></div>'+
       '<div><div class="lbl" style="margin-top:0">Stück erhalten</div>'+
-        '<input class="fld" id="d_rec" value="'+(dl.stk_received||'')+'"></div></div>'+
+        '<input class="fld" id="d_rec" value="'+(dl.stk_received||'')+'" inputmode="numeric"></div></div>'+
 
-    '<div class="lbl">Geschmäcker</div>'+
-    '<div class="frow">'+flavRows+'</div>'+
+    '<div class="lbl">Geschmäcker <span id="flavSum" class="fsum"></span></div>'+
+    '<div class="frow3">'+flavRows+'</div>'+
+    '<div style="text-align:right;margin-top:6px">'+
+      '<button class="btn xs" onclick="flavToStk()">Summe → Stück bestellt</button></div>'+
 
     '<div class="lbl">Versandkosten</div>'+
     '<div class="frow">'+
@@ -1400,18 +1428,37 @@ function openDelivery(oid,did){
 
     '<div class="lbl">Dokumente</div>'+
     DOC_TYPES.filter(function(x){return x.level==='delivery';}).map(function(dt){
-      var att=(dl.attachments||[]).find(function(a){return a.docType===dt.id;});
-      if(att)return '<div class="row have"><span class="rt">'+esc(dt.label)+
-        '<span class="rs">'+esc(att.name)+'</span></span>'+
-        '<button class="ib" onclick="viewDoc(\''+att.id+'\')">&#x2197;</button>'+
-        '<button class="ib del" onclick="rmDoc(\''+oid+'\',\''+did+'\',\''+att.id+'\')">&#x2715;</button></div>';
+      var atts=(dl.attachments||[]).filter(function(a){return a.docType===dt.id;});
       var need=dt.req&&istAngekommen(dl);
-      return '<div class="row'+(need?' miss':'')+'"><span class="rt">'+esc(dt.label)+
+      var head='<div class="row'+(atts.length?' have':(need?' miss':''))+'"><span class="rt">'+esc(dt.label)+
         (dt.money?' <span class="tag tg-late">Geld</span>':'')+
-        '<span class="rs">'+(dt.req?(need?'Pflicht':'Pflicht ab Erhalt'):'optional')+'</span></span>'+
+        (atts.length>1?' <span class="tag tg-grey">'+atts.length+'</span>':'')+
+        '<span class="rs">'+(atts.length?(atts.length+' Datei'+(atts.length>1?'en':'')):
+          (dt.req?(need?'Pflicht':'Pflicht ab Erhalt'):'optional'))+'</span></span>'+
         '<button class="ib" onclick="openDoc(\''+oid+'\',\''+did+'\',\''+dt.id+'\')">+</button><span></span></div>';
+      var files=atts.map(function(a){
+        return '<div class="row" style="margin-left:20px"><span class="rt">'+esc(a.name)+'</span>'+
+          '<button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
+          '<button class="ib del" onclick="rmDoc(\''+oid+'\',\''+did+'\',\''+a.id+'\')">&#x2715;</button></div>';
+      }).join('');
+      return head+files;
     }).join('');
   openOv('ovDel');
+  flavSum();
+}
+function setDelName(n){var e=document.getElementById('d_name');if(e)e.value=n;}
+function flavSum(){
+  var box=document.getElementById('flavSum');if(!box)return;
+  var s=0;FLAVS.forEach(function(fn){s+=n2(val('d_f_'+fn));});
+  var stk=n2(val('d_stk'));
+  if(s===0){box.textContent='';return;}
+  var ok=stk>0&&s===stk;
+  box.innerHTML='<span style="color:'+(ok?'var(--green)':(stk>0?'var(--red)':'var(--tx3)'))+'">'+
+    fnum(s)+(stk>0?(' / '+fnum(stk)+(ok?' ✓':' ✗')):'')+'</span>';
+}
+function flavToStk(){
+  var s=0;FLAVS.forEach(function(fn){s+=n2(val('d_f_'+fn));});
+  var e=document.getElementById('d_stk');if(e){e.value=s;flavSum();}
 }
 function saveDelivery(){
   var dl=fD(CUR.oid,CUR.did);if(!dl)return;
@@ -1451,6 +1498,8 @@ function openPayment(oid,did,pid){
   document.getElementById('payTitle').textContent=p.ref||'Zahlung';
   document.getElementById('payBody').innerHTML=
     '<div class="lbl">Bezeichnung</div><input class="fld" id="p_ref" value="'+esc(p.ref||'')+'">'+
+    '<div class="lbl">Referenz / Verwendungszweck</div>'+
+    '<input class="fld" id="p_refnr" placeholder="z.B. PF0037.04" value="'+esc(p.refNr||'')+'">'+
     '<div class="frow" style="margin-top:12px">'+
       '<div><div class="lbl" style="margin-top:0">Betrag</div>'+
         '<input class="fld" id="p_amt" value="'+(p.amount||'')+'"></div>'+
@@ -1466,7 +1515,7 @@ function savePayment(){
   var o=fO(CUR.oid);if(!o)return;
   var list=CUR.did?(fD(CUR.oid,CUR.did)||{}).payments:o.payments;
   var p=(list||[]).find(function(x){return x.id===CUR.pid;});if(!p)return;
-  p.ref=val('p_ref');p.amount=n2(val('p_amt'));
+  p.ref=val('p_ref');p.refNr=val('p_refnr');p.amount=n2(val('p_amt'));
   p.dueDate=val('p_due');p.paidDate=val('p_paid');p.notes=val('p_note');
   if(p.paidDate&&!n2(p.amount_paid))p.amount_paid=n2(p.amount);
   if(!p.paidDate)p.amount_paid=0;
