@@ -342,6 +342,68 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
   .ptr .pd{grid-column:1/-1;}
   .dcard{margin:8px;}
 }
+/* ══ HIERARCHIE-BAUM ══ */
+.treebar{display:flex;gap:8px;align-items:center;margin-bottom:12px;}
+.treebar .cnt{margin-left:auto;font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3);
+  background:var(--sur);padding:5px 11px;border-radius:20px;border:1px solid var(--bd);}
+
+/* Ebene 1 — Bestellung */
+.order{background:var(--sur);border-radius:16px;box-shadow:var(--sh);margin-bottom:12px;overflow:hidden;}
+.order.dragging{opacity:.4;} .order.over{box-shadow:inset 0 3px 0 var(--ink);}
+.ohead{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:15px 18px;cursor:pointer;}
+.ohead:hover{background:var(--sur2);}
+.ocaret{font-size:10px;color:var(--tx3);transition:transform .15s;}
+.order.open .ocaret{transform:rotate(90deg);}
+.otitle{font-size:16px;font-weight:700;letter-spacing:-.02em;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.osub{font-size:11.5px;color:var(--tx3);margin-top:3px;}
+.osum{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;}
+
+/* Ebene 2 — Lieferungen mit Führungslinie */
+.dels{padding:2px 18px 12px 18px;}
+.rail{position:relative;padding-left:22px;}
+.rail::before{content:'';position:absolute;left:6px;top:4px;bottom:34px;width:2px;background:var(--bd);}
+.del{position:relative;background:var(--sur);border:1px solid var(--bd);border-radius:12px;margin-bottom:8px;overflow:hidden;
+  border-left:3px solid var(--bds);}
+.del.arr{border-left-color:var(--green);} .del.late{border-left-color:var(--red);}
+.del.exp{border-left-color:var(--bds);} .del.anz{border-left-color:var(--blue);}
+.del::before{content:'';position:absolute;left:-19px;top:19px;width:9px;height:9px;border-radius:50%;
+  background:var(--bds);border:2px solid var(--sur);z-index:1;}
+.del.arr::before{background:var(--green);} .del.late::before{background:var(--red);} .del.anz::before{background:var(--blue);}
+.dhead{display:grid;grid-template-columns:46px 1fr auto;gap:12px;align-items:center;padding:11px 13px;cursor:pointer;}
+.dhead:hover{background:var(--sur2);}
+.ddate{text-align:center;}
+.ddate .dd{font-family:'DM Mono',monospace;font-size:15px;font-weight:600;line-height:1;}
+.ddate .mm{font-family:'DM Mono',monospace;font-size:9px;color:var(--tx3);text-transform:uppercase;margin-top:1px;}
+.ddate .tbd{font-family:'DM Mono',monospace;font-size:10px;color:var(--tx3);}
+.dmid{min-width:0;}
+.dname{font-size:13.5px;font-weight:650;display:flex;align-items:center;gap:7px;flex-wrap:wrap;}
+.dstat{display:flex;flex-direction:column;gap:4px;align-items:flex-end;}
+
+/* Ebene 3 — Teilzahlungen + Dokumente */
+.dbody{border-top:1px solid var(--bd);background:var(--sur2);padding:12px 13px;}
+.sect2{margin-top:13px;}
+.subrail{position:relative;padding-left:16px;}
+.subrail::before{content:'';position:absolute;left:4px;top:2px;bottom:8px;width:2px;background:var(--bd);}
+.prow{display:grid;grid-template-columns:52px 1fr auto auto auto;gap:8px;align-items:center;padding:7px 10px;
+  background:var(--sur);border-radius:8px;margin-bottom:5px;font-size:12px;position:relative;}
+.prow::before{content:'';position:absolute;left:-12px;top:50%;width:8px;height:1px;background:var(--bd);}
+.prow.late{background:var(--rsoft);} .prow.paid{opacity:.6;}
+.prow .pd{font-family:'DM Mono',monospace;font-size:10.5px;color:var(--tx3);}
+.mchip{font-size:10.5px;padding:4px 9px;border-radius:8px;background:var(--sur);border:1px solid var(--bd);}
+.mchip b{font-family:'DM Mono',monospace;}
+.mini{font-size:10.5px;font-weight:600;padding:5px 10px;border-radius:7px;border:1px solid var(--bd);
+  background:var(--sur);color:var(--tx2);cursor:pointer;font-family:'Inter',sans-serif;}
+.mini:hover{background:var(--ink);color:#fff;border-color:var(--ink);}
+.fbar{display:flex;height:15px;border-radius:5px;overflow:hidden;margin-top:6px;max-width:320px;background:var(--sur2);}
+.fbar span{display:flex;align-items:center;justify-content:center;font-size:8.5px;font-weight:600;overflow:hidden;white-space:nowrap;}
+@media(max-width:640px){
+  .ohead{grid-template-columns:auto 1fr;}
+  .osum{grid-column:1/-1;justify-content:flex-start;padding-left:26px;}
+  .dhead{grid-template-columns:44px 1fr;}
+  .dstat{grid-column:1/-1;flex-direction:row;flex-wrap:wrap;padding-left:56px;margin-top:4px;}
+  .prow{grid-template-columns:48px 1fr auto;}
+  .prow .tag{grid-column:2;justify-self:start;}
+}
 </style>
 </head>
 <body>
@@ -355,7 +417,6 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
       <option value="manual">Eigene Reihenfolge</option>
       <option value="ref">Bestellnummer</option>
       <option value="due">Nächste Fälligkeit</option>
-      <option value="open">Offener Betrag</option>
     </select>
     <button class="btn dark" onclick="openNew()">+ Bestellung</button>
   </div>
@@ -363,35 +424,15 @@ body{font-family:'Inter',sans-serif;background:var(--canvas);color:var(--tx);
   <div id="reminders"></div>
   <div class="kpis" id="kpis"></div>
 
-  <div class="grid">
-    <section class="panel s8">
-      <div class="ph"><h2 id="dtHead">Bestellung</h2><span class="cnt" id="dtCnt"></span>
-        <button class="act" onclick="toggleAllCards()" id="dtToggle">alle aufklappen</button></div>
-      <div class="pbody" id="detail" style="max-height:640px"></div>
-    </section>
-
-    <section class="panel s4">
-      <div class="ph"><h2>Bestellungen</h2><span class="cnt" id="ordCnt">0</span>
-        <button class="act" onclick="openNew()">+ neu</button></div>
-      <div class="pbody" id="orders" style="max-height:250px"></div>
-      <div class="ph" style="border-top:1px solid var(--bd)"><h2>Zahlungs-Termine</h2>
-        <span class="cnt" id="zpCnt"></span></div>
-      <div class="pbody zp" id="zplan" style="max-height:350px"></div>
-    </section>
-
-    <section class="panel s12">
-      <div class="ph"><h2>Wann kommt was an</h2><span class="cnt">Lieferplan nach Geschmack</span></div>
-      <div class="pbody" id="plan"></div>
-    </section>
-
-    <section class="panel s12">
-      <div class="ph"><h2>Dokumente</h2><span class="cnt" id="docCnt"></span>
-        <span class="act" onclick="toggleDocView()" id="docToggle">nur fehlende</span></div>
-      <div class="pbody" id="docs" style="max-height:440px"></div>
-    </section>
+  <div class="treebar">
+    <button class="btn sm" onclick="treeAll(true)">Alle aufklappen</button>
+    <button class="btn sm" onclick="treeAll(false)">Alle zuklappen</button>
+    <span style="flex:1"></span>
+    <span class="cnt" id="docCnt"></span>
   </div>
+  <div id="root"></div>
 </div>
-<!-- entfernt: Cashflow-Panel und separates Zu-erledigen-Panel (Finanzen laufen im Excel) -->
+<!-- Hierarchie: Bestellung → Lieferung → Teilzahlungen & Dokumente. Finanzen laufen im Excel. -->
 
 <div class="ov" id="ovOrd" onclick="bgClose(event,this)">
   <div class="mbox"><div class="mh"><h3 id="ordTitle">Bestellung</h3>
@@ -640,6 +681,7 @@ function docLabel(t){var d=DOC_TYPES.find(function(x){return x.id===t;});return 
 function docIsMoney(t){var d=DOC_TYPES.find(function(x){return x.id===t;});return !!(d&&d.money);}
 
 var FLAVS=['Zitrone','Orange','Waldbeere','Limited'];
+var MONS=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
 function flavCls(n){return FLAVS.indexOf(n)>=0?('f-'+n):'f-x';}
 
 /* ── Zahlungsregeln ── */
@@ -743,7 +785,6 @@ function planFor(stkGesamt,preis,dels){
 }
 
 /* ══════════ RENDER ══════════ */
-var SEL=null, OPENC={};
 
 function sortedOrders(){
   var a=(ST.orders||[]).slice();
@@ -793,10 +834,7 @@ function delDocs(o,dl){
 function render(){
   if(!ST)return;
   document.getElementById('today').textContent=fd(todayStr());
-  var list=sortedOrders();
-  if(!SEL||!fO(SEL))SEL=list.length?list[0].id:null;
-  renderReminder(); renderKpis(); renderOrders(); renderDetail(); renderZplan();
-  renderDocs(); renderPlan();
+  renderReminder(); renderKpis(); renderTree();
 }
 function renderReminder(){
   var box=document.getElementById('reminders');if(!box)return;
@@ -872,38 +910,183 @@ function renderKpis(){
       '<div class="kv">'+docMiss+'</div>'+
       '<div class="ks">'+(gesamtDel?(angekommen+' von '+gesamtDel+' Lieferungen da'):'—')+'</div></div>';
 }
-function renderOrders(){
-  var a=sortedOrders();
-  document.getElementById('ordCnt').textContent=a.length;
-  if(!a.length){document.getElementById('orders').innerHTML=
-    '<div class="empty">Noch keine Bestellung.<br><br>'+
-    '<button class="btn dark" onclick="openNew()">+ Bestellung anlegen</button></div>';return;}
+/* ══ HIERARCHIE-BAUM ══ */
+var OO={}, OD={};   // aufgeklappte Bestellungen / Lieferungen
+function orderSummary(o){
   var h=todayStr();
-  document.getElementById('orders').innerHTML=a.map(function(o){
-    var dels=(o.deliveries||[]).filter(function(d){return d.kind!=='anzahlung';});
-    var nDel=dels.length;
-    var ang=dels.filter(function(d){return istAngekommen(d);}).length;
-    var pct=nDel>0?(ang/nDel*100):0;
-    var ds=docStatus(o);
-    var t=orderTotals(o);
-    var tag = t.nUeber>0 ? '<span class="tag tg-late">'+t.nUeber+' Zahlung fällig</span>'
-            : (ds.missing.length>0 ? '<span class="tag tg-open">'+ds.missing.length+' Dok. fehlt</span>'
-            : '<span class="tag tg-ok">komplett</span>');
-    var col = t.nUeber>0?'var(--red)':(ds.missing.length>0?'var(--amber)':'var(--green)');
-    // nächste Ankunft
-    var next=null;
-    dels.forEach(function(d){if(d.deliveryDate&&d.deliveryDate>=h&&(!next||d.deliveryDate<next))next=d.deliveryDate;});
-    return '<div class="ord'+(o.id===SEL?' sel':'')+'" draggable="'+(SORT==='manual')+'" '+
-      'data-id="'+o.id+'" onclick="selectOrder(\''+o.id+'\')">'+
-      '<span class="grip" onclick="event.stopPropagation()">'+(SORT==='manual'?'&#x283F;':'')+'</span>'+
-      '<span><span class="n">'+esc(o.ref||o.name)+' '+tag+'</span>'+
-        '<span class="meta">'+ang+'/'+nDel+' angekommen'+(next?' · nächste '+fdShort(next):'')+'</span>'+
-        '<span class="pbar"><i style="width:'+Math.min(100,pct).toFixed(0)+'%;background:'+col+'"></i></span></span>'+
-      '<span class="r"><span class="tot" style="font-size:11px;color:var(--tx3)">'+fnum(o.totalUnits||0)+' Stk</span></span></div>';
+  var dels=(o.deliveries||[]).filter(function(d){return d.kind!=='anzahlung'&&n2(d.stk_ordered)>0;});
+  var ang=dels.filter(function(d){return istAngekommen(d);}).length;
+  var t=orderTotals(o), ds=docStatus(o);
+  var nextPay=null;
+  allPays(o).forEach(function(e){if(!e.p.paidDate&&e.p.dueDate&&(!nextPay||e.p.dueDate<nextPay))nextPay=e.p.dueDate;});
+  var s='<span class="tag tg-grey">'+ang+'/'+dels.length+' angekommen</span>';
+  if(t.nUeber>0)s+='<span class="tag tg-late">'+t.nUeber+' überfällig</span>';
+  else if(nextPay)s+='<span class="tag tg-open">zahlen '+fdShort(nextPay)+'</span>';
+  else s+='<span class="tag tg-ok">bezahlt</span>';
+  if(ds.missing.length>0)s+='<span class="tag tg-late">'+ds.missing.length+' Dok. fehlt</span>';
+  else if(ds.need>0)s+='<span class="tag tg-ok">Dok. ✓</span>';
+  return s;
+}
+function renderTree(){
+  var a=sortedOrders();
+  var totalMiss=0;a.forEach(function(o){totalMiss+=docStatus(o).missing.length;});
+  var dc=document.getElementById('docCnt');if(dc)dc.textContent=totalMiss?(totalMiss+' Dokumente fehlen'):'Dokumente vollständig';
+  if(!a.length){document.getElementById('root').innerHTML=
+    '<div class="panel"><div class="empty">Noch keine Bestellung.<br><br>'+
+    '<button class="btn dark" onclick="openNew()">+ Bestellung anlegen</button></div></div>';return;}
+  document.getElementById('root').innerHTML=a.map(function(o){
+    var isOpen=OO[o.id]!==false;   // default offen
+    var dels=(o.deliveries||[]).slice().sort(function(x,y){
+      if(x.kind==='anzahlung'&&y.kind!=='anzahlung')return -1;
+      if(y.kind==='anzahlung'&&x.kind!=='anzahlung')return 1;
+      return String(x.deliveryDate||'9999').localeCompare(String(y.deliveryDate||'9999'));});
+    var body='';
+    if(isOpen){
+      body='<div class="dels"><div class="rail">'+
+        dels.map(function(dl){return delNode(o,dl);}).join('')+
+        '<div style="padding:6px 0 2px"><button class="btn sm" onclick="addDelivery(\''+o.id+'\')">+ Teillieferung</button></div>'+
+      '</div></div>';
+    }
+    return '<div class="order'+(isOpen?' open':'')+'" draggable="'+(SORT==='manual')+'" data-id="'+o.id+'">'+
+      '<div class="ohead" onclick="toggleOrder(\''+o.id+'\')">'+
+        '<span class="ocaret">&#x25B6;</span>'+
+        '<div><div class="otitle">'+esc(o.ref||o.name)+
+          ' <button class="btn xs" onclick="event.stopPropagation();renameOrder(\''+o.id+'\')">Umbenennen</button>'+
+          ' <button class="btn xs" onclick="event.stopPropagation();openOrder(\''+o.id+'\')">Bearbeiten</button></div>'+
+          '<div class="osub">'+esc(o.supplier||'')+(o.totalUnits?' · '+fnum(o.totalUnits)+' Stk':'')+
+            (o.zahlungskonditionen?' · '+esc(o.zahlungskonditionen):'')+'</div></div>'+
+        '<div class="osum">'+orderSummary(o)+'</div>'+
+      '</div>'+body+'</div>';
   }).join('');
   if(SORT==='manual')wireDrag();
 }
-function selectOrder(id){SEL=id;OPENC={};render();}
+function delNode(o,dl){
+  var open=!!OD[dl.id], ang=istAngekommen(dl);
+  var isAnz=dl.kind==='anzahlung';
+  var offen=(dl.payments||[]).filter(function(p){return !p.paidDate;});
+  var late=offen.some(function(p){return p.dueDate&&p.dueDate<todayStr();});
+  var cls=isAnz?'anz':(ang?'arr':(dl.deliveryDate&&dl.deliveryDate<todayStr()?'late':'exp'));
+
+  // Datumsbox
+  var datebox;
+  if(isAnz)datebox='<div class="tbd">Anz.</div>';
+  else if(dl.deliveryDate){var p=dl.deliveryDate.split('-');
+    datebox='<div class="dd">'+p[2]+'</div><div class="mm">'+MONS[+p[1]-1]+'</div>';}
+  else datebox='<div class="tbd">offen</div>';
+
+  // Statuszeile rechts
+  var st='';
+  if(!isAnz){
+    if(ang)st+='<span class="tag tg-ok">angekommen</span>';
+    else if(dl.deliveryDate&&dl.deliveryDate<todayStr())st+='<span class="tag tg-late">überfällig</span>';
+    else if(dl.deliveryDate)st+='<span class="tag tg-grey">in '+daysBetween(todayStr(),dl.deliveryDate)+' T</span>';
+  }
+  if(offen.length){var nx=offen.slice().sort(function(a,b){return String(a.dueDate||'9').localeCompare(String(b.dueDate||'9'));})[0];
+    st+='<span class="tag '+(late?'tg-late':'tg-open')+'">zahlen '+(nx.dueDate?fdShort(nx.dueDate):'offen')+'</span>';}
+  else if((dl.payments||[]).length)st+='<span class="tag tg-ok">bezahlt</span>';
+  if(!isAnz&&ang){var docs=delDocs(o,dl);var have=docs.filter(function(d){return d.state==='y';}).length;var need=docs.filter(function(d){return d.req;}).length;
+    if(need>0)st+='<span class="tag '+(have>=need?'tg-ok':'tg-late')+'">Dok '+have+'/'+need+'</span>';}
+
+  // Geschmacks-Balken
+  var fbar='';
+  if(!isAnz){
+    var fl=(dl.flavors||[]).filter(function(f){return n2(f.qty)>0;});
+    if(fl.length){var tot=n2(dl.stk_ordered)||fl.reduce(function(s,f){return s+n2(f.qty);},0)||1;
+      fbar='<div class="fbar">'+fl.map(function(f){
+        return '<span class="'+flavCls(f.name)+'" style="width:'+Math.max(9,n2(f.qty)/tot*100).toFixed(1)+'%">'+
+          esc(f.name.slice(0,1))+' '+fnum(f.qty)+'</span>';}).join('')+'</div>';
+    } else if(n2(dl.stk_ordered)>0){
+      fbar='<div class="fbar"><span class="f-x" style="width:100%">'+fnum(dl.stk_ordered)+' Stk</span></div>';}
+  }
+
+  return '<div class="del '+cls+(open?' open':'')+'">'+
+    '<div class="dhead" onclick="toggleCard(\''+dl.id+'\')">'+
+      '<div class="ddate">'+datebox+'</div>'+
+      '<div class="dmid"><div class="dname">'+esc(dl.name)+'</div>'+fbar+'</div>'+
+      '<div class="dstat">'+st+'</div>'+
+    '</div>'+(open?delBody(o,dl):'')+'</div>';
+}
+function delBody(o,dl){
+  var isAnz=dl.kind==='anzahlung', ang=istAngekommen(dl);
+  var b='<div class="dbody">';
+  // Wareneingang
+  if(!isAnz&&n2(dl.stk_ordered)>0){
+    var pct=n2(dl.stk_received)/n2(dl.stk_ordered)*100;
+    b+='<div class="we"><div style="flex:1"><div class="we-l">Wareneingang</div>'+
+      '<div class="we-bar"><i style="width:'+Math.min(100,pct).toFixed(0)+'%"></i></div>'+
+      '<div class="we-s">'+fnum(dl.stk_received)+' von '+fnum(dl.stk_ordered)+' Stk ('+pct.toFixed(0)+'%)</div></div>'+
+      '<button class="btn sm" onclick="bookIn(\''+o.id+'\',\''+dl.id+'\')">Eingang buchen</button></div>';
+  }
+  // Info-Chips (ohne Beträge)
+  var chips='';
+  if(dl.shipDate)chips+='<span class="mchip">Versand <b>'+fdShort(dl.shipDate)+'</b></span>';
+  if(dl.deliveryDate)chips+='<span class="mchip">'+(ang?'Erhalten':'Erwartet')+' <b>'+fdShort(dl.deliveryDate)+'</b></span>';
+  if(dl.rechnungNr)chips+='<span class="mchip">Rg. <b>'+esc(dl.rechnungNr)+'</b></span>';
+  if(dl.gewichtBrutto)chips+='<span class="mchip">Brutto <b>'+fnum(dl.gewichtBrutto)+' kg</b></span>';
+  if(dl.paletten)chips+='<span class="mchip">Paletten <b>'+dl.paletten+'</b></span>';
+  if(dl.evvNummer)chips+='<span class="mchip">eVV <b>'+esc(dl.evvNummer)+'</b></span>';
+  if(dl.spediteur)chips+='<span class="mchip">'+esc(dl.spediteur)+'</span>';
+  if(dl.evvNummer)chips+='<span class="mchip">'+(dl.praeferenz?'Präferenz ✓':'<span style="color:var(--red)">Präferenz ✗</span>')+'</span>';
+  if(chips)b+='<div class="chips" style="margin-top:'+(isAnz?'0':'10px')+'">'+chips+'</div>';
+
+  if((dl.flavors||[]).length){
+    b+='<div class="sect sect2">Geschmäcker</div><div>'+
+      dl.flavors.filter(function(f){return n2(f.qty)>0;}).map(function(f){
+        return '<span class="fpill '+flavCls(f.name)+'">'+esc(f.name)+' '+fnum(f.qty)+'</span>';}).join('')+'</div>';
+  }
+
+  // Teilzahlungen (Termine, keine Beträge)
+  b+='<div class="sect sect2">Teilzahlungen<span style="float:right">'+
+    '<button class="mini" onclick="addPaymentTo(\''+o.id+'\',\''+dl.id+'\')">+ Termin</button></span></div><div class="subrail">';
+  var pays=(dl.payments||[]).slice().sort(function(a,b){return String(a.dueDate||'').localeCompare(String(b.dueDate||''));});
+  if(pays.length)b+=pays.map(function(p){
+    var lt=!p.paidDate&&p.dueDate&&p.dueDate<todayStr();
+    return '<div class="prow'+(lt?' late':(p.paidDate?' paid':''))+'">'+
+      '<span class="pd">'+(p.paidDate?fdShort(p.paidDate):(p.dueDate?fdShort(p.dueDate):'offen'))+'</span>'+
+      '<span>'+esc(p.ref||'Zahlung')+(p.refNr?' <span class="tag tg-grey">'+esc(p.refNr)+'</span>':'')+'</span>'+
+      '<span class="tag '+(p.paidDate?'tg-ok':(lt?'tg-late':'tg-open'))+'">'+(p.paidDate?'bezahlt':(lt?'überfällig':'offen'))+'</span>'+
+      (p.paidDate?'<span></span>':'<button class="mini" onclick="markPaid(\''+o.id+'\',\''+dl.id+'\',\''+p.id+'\')">Bezahlt</button>')+
+      '<button class="ib" onclick="openPayment(\''+o.id+'\',\''+dl.id+'\',\''+p.id+'\')">&#x270F;</button></div>';
+  }).join('');
+  else b+='<div style="font-size:11.5px;color:var(--tx3);padding:4px 2px">Kein Termin erfasst.</div>';
+  b+='</div>';
+
+  // Dokumente
+  if(!isAnz){
+    var docs=delDocs(o,dl);
+    var have=docs.filter(function(d){return d.state==='y';}).length;
+    var need=docs.filter(function(d){return d.req;}).length;
+    if(docs.length){
+      b+='<div class="sect sect2">Dokumente <span style="color:var(--tx3)">'+have+'/'+need+' Pflicht</span></div><div class="docs">'+
+        docs.map(function(d){
+          var icon=d.state==='y'?'<span class="dst y">&#x2713;</span>':(d.state==='n'?'<span class="dst n">!</span>':'<span class="dst o">·</span>');
+          var head='<div class="drow'+(d.state==='n'?' miss':'')+(d.state==='o'?' opt':'')+'">'+icon+
+            '<span><span class="dl-n">'+esc(d.label)+(d.atts.length>1?' <span class="tag tg-grey">'+d.atts.length+'</span>':'')+'</span><br>'+
+              '<span class="dl-s">'+(d.atts.length?(d.atts.length+' Datei'+(d.atts.length>1?'en':'')):(d.need?'Pflicht':'optional'))+'</span></span>'+
+            '<button class="ib" onclick="openDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Datei hinzufügen">+</button></div>';
+          var files=d.atts.map(function(a){
+            return '<div class="drow" style="margin-left:26px;background:var(--sur2)">'+
+              '<span class="dst o">&#x1F4C4;</span>'+
+              '<span><span class="dl-n">'+esc(a.name)+'</span><br><span class="dl-s">'+Math.round((a.size||0)/1024)+' KB · '+fdShort(a.date)+'</span></span>'+
+              '<span><button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
+              '<button class="ib del" onclick="rmDoc(\''+o.id+'\',\''+dl.id+'\',\''+a.id+'\')">&#x2715;</button></span></div>';
+          }).join('');
+          return head+files;
+        }).join('')+'</div>';
+    }
+  }
+  if(dl.bemerkung)b+='<div class="sect sect2">Notiz</div><div style="font-size:11.5px;color:var(--tx2)">'+esc(dl.bemerkung)+'</div>';
+  b+='<div class="dacts">'+
+    '<button class="btn xs" onclick="openDelivery(\''+o.id+'\',\''+dl.id+'\')">Bearbeiten</button>'+
+    '<span style="flex:1"></span>'+
+    '<button class="btn xs danger" onclick="delDeliveryFrom(\''+o.id+'\',\''+dl.id+'\')">Löschen</button></div>';
+  return b+'</div>';
+}
+function toggleOrder(id){OO[id]=(OO[id]===false?true:false);renderTree();}
+function toggleCard(id){OD[id]=!OD[id];renderTree();}
+function treeAll(v){(ST.orders||[]).forEach(function(o){OO[o.id]=v;(o.deliveries||[]).forEach(function(d){OD[d.id]=v;});});renderTree();}
+function selectOrder(id){OO[id]=true;renderTree();
+  setTimeout(function(){var el=document.querySelector('.order[data-id="'+id+'"]');if(el)el.scrollIntoView({behavior:'smooth',block:'center'});},60);}
 function renameOrder(id){
   event&&event.stopPropagation&&event.stopPropagation();
   var o=fO(id);if(!o)return;
@@ -914,180 +1097,6 @@ function renameOrder(id){
   sv();render();
 }
 
-/* ══ DETAIL ══ */
-function renderDetail(){
-  var o=SEL?fO(SEL):null;
-  var head=document.getElementById('dtHead'),cnt=document.getElementById('dtCnt');
-  if(!o){head.textContent='Bestellung';cnt.textContent='';
-    document.getElementById('detail').innerHTML='<div class="empty">Links eine Bestellung wählen.</div>';return;}
-  var cur=o.currency||'EUR';
-  head.textContent=o.ref||o.name;
-  var dels=(o.deliveries||[]).slice().sort(function(a,b){
-    if(a.kind==='anzahlung'&&b.kind!=='anzahlung')return -1;
-    if(b.kind==='anzahlung'&&a.kind!=='anzahlung')return 1;
-    return String(a.deliveryDate||'9999').localeCompare(String(b.deliveryDate||'9999'));});
-  cnt.textContent=dels.length+' Positionen';
-
-  var realDels=dels.filter(function(d){return d.kind!=='anzahlung';});
-  var stkGel=realDels.reduce(function(s,d){return s+n2(d.stk_received);},0);
-  var stkBes=realDels.reduce(function(s,d){return s+n2(d.stk_ordered);},0);
-  var ang=realDels.filter(function(d){return istAngekommen(d);}).length;
-  var ds=docStatus(o);
-  var offenePay=allPays(o).filter(function(e){return !e.p.paidDate;}).length;
-
-  var h='<div class="dt-head">'+
-    '<div class="dt-title">'+esc(o.ref||o.name)+
-      ' <button class="btn xs" onclick="renameOrder(\''+o.id+'\')">Umbenennen</button>'+
-      ' <button class="btn xs" onclick="openOrder(\''+o.id+'\')">Bearbeiten</button></div>'+
-    '<div class="dt-sub">'+esc(o.supplier||'')+
-      (o.totalUnits?' · '+fnum(o.totalUnits)+' Stk':'')+
-      (o.zahlungskonditionen?'<br>'+esc(o.zahlungskonditionen):'')+'</div>'+
-    '<div class="dt-stats">'+
-      '<div class="dt-stat"><div class="l">Lieferungen</div><div class="v">'+ang+' / '+realDels.length+' da</div></div>'+
-      '<div class="dt-stat"><div class="l">Wareneingang</div><div class="v">'+fnum(stkGel)+' / '+fnum(stkBes)+'</div></div>'+
-      '<div class="dt-stat"><div class="l">Offene Zahlungen</div><div class="v'+(offenePay>0?'':' g')+'">'+offenePay+'</div></div>'+
-      '<div class="dt-stat"><div class="l">Dokumente</div><div class="v'+(ds.missing.length>0?' r':' g')+'">'+ds.have+' / '+ds.need+'</div></div>'+
-    '</div></div>';
-
-  h+=dels.map(function(dl){return delCard(o,dl,cur);}).join('');
-  h+='<div style="padding:4px 12px 14px"><button class="btn sm" onclick="addDelivery(\''+o.id+'\')">+ Teillieferung</button></div>';
-  document.getElementById('detail').innerHTML=h;
-}
-function delCard(o,dl,cur){
-  var t=delTotals(dl),open=!!OPENC[dl.id];
-  var ang=istAngekommen(dl);
-  var offenePay=(dl.payments||[]).filter(function(p){return !p.paidDate;});
-  var latePay=offenePay.some(function(p){return p.dueDate&&p.dueDate<todayStr();});
-  var cls = dl.kind==='anzahlung' ? 'anz'
-          : (ang ? 'paid' : (latePay?'late':'part'));
-  var docs=delDocs(o,dl);
-  var missing=docs.filter(function(d){return d.state==='n';}).length;
-  var haveN=docs.filter(function(d){return d.state==='y';}).length;
-  var reqN=docs.filter(function(d){return d.req;}).length;
-
-  var badges='';
-  if(dl.kind==='anzahlung')badges+='<span class="tag tg-info">Anzahlung</span>';
-  else if(ang)badges+='<span class="tag tg-ok">Angekommen</span>';
-  else if(dl.deliveryDate&&dl.deliveryDate<todayStr())badges+='<span class="tag tg-late">überfällig</span>';
-  else badges+='<span class="tag tg-open">erwartet</span>';
-  if(n2(dl.stk_ordered)>0)badges+='<span class="tag tg-grey">'+fnum(dl.stk_received)+'/'+fnum(dl.stk_ordered)+'</span>';
-  if(offenePay.length>0)badges+='<span class="tag '+(latePay?'tg-late':'tg-open')+'">'+offenePay.length+' Zahlung offen</span>';
-  if(missing>0)badges+='<span class="tag tg-late">'+missing+' Dok. fehlt</span>';
-  else if(reqN>0&&dl.kind!=='anzahlung')badges+='<span class="tag tg-ok">Dok. ✓</span>';
-
-  var meta=[];
-  if(dl.deliveryDate)meta.push((ang?'':'geplant ')+fd(dl.deliveryDate));
-  if(n2(dl.stk_ordered)>0)meta.push(fnum(dl.stk_ordered)+' Stk');
-  if(dl.rechnungNr)meta.push('Rg. '+esc(dl.rechnungNr));
-
-  // Kopf-Anzeige rechts: nächster Termin statt Betrag
-  var headRight='';
-  if(!ang&&dl.deliveryDate)headRight=fdShort(dl.deliveryDate);
-  else if(offenePay.length){
-    var nx=offenePay.slice().sort(function(a,b){return String(a.dueDate||'9999').localeCompare(String(b.dueDate||'9999'));})[0];
-    if(nx.dueDate)headRight='zahlen '+fdShort(nx.dueDate);
-  }
-
-  var body='';
-  if(open){
-    var pct=n2(dl.stk_ordered)>0?(n2(dl.stk_received)/n2(dl.stk_ordered)*100):0;
-    body='<div class="dc-body">';
-    if(dl.kind!=='anzahlung'&&n2(dl.stk_ordered)>0){
-      body+='<div class="we"><div><div class="we-l">Wareneingang</div>'+
-        '<div class="we-bar"><i style="width:'+Math.min(100,pct).toFixed(0)+'%"></i></div>'+
-        '<div class="we-s">'+fnum(dl.stk_received)+' von '+fnum(dl.stk_ordered)+' Stk ('+pct.toFixed(0)+'%)</div></div>'+
-        '<button class="btn sm" onclick="bookIn(\''+o.id+'\',\''+dl.id+'\')">Eingang buchen</button></div>';
-    }
-    // Termine + logistische Infos (ohne Beträge)
-    body+='<div class="chips">';
-    if(dl.shipDate)body+='<span class="chip">Versand <b>'+fdShort(dl.shipDate)+'</b></span>';
-    if(dl.deliveryDate)body+='<span class="chip">'+(ang?'Erhalten':'Erwartet')+' <b>'+fdShort(dl.deliveryDate)+'</b></span>';
-    if(dl.gewichtBrutto)body+='<span class="chip">Brutto <b>'+fnum(dl.gewichtBrutto)+' kg</b></span>';
-    if(dl.paletten)body+='<span class="chip">Paletten <b>'+dl.paletten+'</b></span>';
-    if(dl.incoterm)body+='<span class="chip">'+esc(dl.incoterm)+'</span>';
-    if(n2(dl.shippingCost)>0&&dl.shippingPayer==='svz')body+='<span class="chip">Versand zahlt SVZ</span>';
-    body+='</div>';
-
-    if((dl.flavors||[]).length){
-      body+='<div class="sect">Geschmäcker</div><div>'+
-        dl.flavors.map(function(f){
-          return '<span class="fpill '+flavCls(f.name)+'">'+esc(f.name)+' '+fnum(f.qty)+'</span>';
-        }).join('')+'</div>';
-    }
-    if(dl.evvNummer){
-      body+='<div class="sect">Verzollung</div><div class="chips">'+
-        '<span class="chip">eVV <b>'+esc(dl.evvNummer)+'</b></span>'+
-        (dl.spediteur?'<span class="chip">'+esc(dl.spediteur)+'</span>':'')+
-        '<span class="chip">'+(dl.praeferenz?'Präferenz ✓':'<span style="color:var(--red)">Präferenz ✗</span>')+'</span>'+
-        '</div>';
-    }
-
-    // Zahlungs-TERMINE (keine Beträge)
-    body+='<div class="sect">Zahlungs-Termine<span class="r">'+
-      '<button class="btn xs" onclick="addPaymentTo(\''+o.id+'\',\''+dl.id+'\')">+ Termin</button></span></div>';
-    if((dl.payments||[]).length){
-      body+='<div class="ptab">'+dl.payments.slice().sort(function(a,b){
-        return String(a.dueDate||'').localeCompare(String(b.dueDate||''));
-      }).map(function(p){
-        var late=!p.paidDate&&p.dueDate&&p.dueDate<todayStr();
-        return '<div class="ptr'+(late?' late':(p.paidDate?' paid':''))+'">'+
-          '<span><span style="font-weight:500">'+esc(p.ref||'Zahlung')+
-            (p.refNr?' <span class="tag tg-grey">'+esc(p.refNr)+'</span>':'')+'</span>'+
-            '<span class="pd">'+(p.paidDate?('bezahlt '+fdShort(p.paidDate)):
-              (p.dueDate?('fällig '+fdShort(p.dueDate)):'Termin offen'))+'</span></span>'+
-          '<span>'+(p.paidDate?'<span class="tag tg-ok">Bezahlt</span>':
-            (late?'<span class="tag tg-late">Überfällig</span>':'<span class="tag tg-open">Offen</span>'))+'</span>'+
-          (p.paidDate?'':'<button class="btn xs" onclick="markPaid(\''+o.id+'\',\''+dl.id+'\',\''+p.id+'\')">Bezahlt</button>')+
-          '<button class="ib" onclick="openPayment(\''+o.id+'\',\''+dl.id+'\',\''+p.id+'\')">&#x270F;</button></div>';
-      }).join('')+'</div>';
-    } else body+='<div class="empty" style="padding:12px">Kein Zahlungstermin erfasst.</div>';
-
-    if(dl.kind!=='anzahlung'){
-      body+='<div class="sect">Dokumente <span style="color:var(--tx3)">'+haveN+'/'+reqN+' Pflicht</span></div>'+
-        '<div class="docs">'+docs.map(function(d){
-          var icon=d.state==='y'?'<span class="dst y">&#x2713;</span>':
-                   (d.state==='n'?'<span class="dst n">!</span>':'<span class="dst o">·</span>');
-          var head='<div class="drow'+(d.state==='n'?' miss':'')+(d.state==='o'?' opt':'')+'">'+icon+
-            '<span><span class="dl-n">'+esc(d.label)+
-              (d.atts.length>1?' <span class="tag tg-grey">'+d.atts.length+'</span>':'')+'</span><br>'+
-              '<span class="dl-s">'+(d.atts.length?(d.atts.length+' Datei'+(d.atts.length>1?'en':'')):
-                (d.need?'Pflicht':'optional'))+'</span></span>'+
-            '<button class="ib" onclick="openDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Datei hinzufügen">+</button></div>';
-          var files=d.atts.map(function(a){
-            return '<div class="drow" style="margin-left:26px;background:var(--sur)">'+
-              '<span class="dst o">&#x1F4C4;</span>'+
-              '<span><span class="dl-n">'+esc(a.name)+'</span><br>'+
-                '<span class="dl-s">'+Math.round((a.size||0)/1024)+' KB · '+fdShort(a.date)+'</span></span>'+
-              '<span><button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
-              '<button class="ib del" onclick="rmDoc(\''+o.id+'\',\''+dl.id+'\',\''+a.id+'\')">&#x2715;</button></span></div>';
-          }).join('');
-          return head+files;
-        }).join('')+'</div>';
-    }
-    if(dl.bemerkung)body+='<div class="sect">Notiz</div><div style="font-size:11.5px;color:var(--tx2)">'+esc(dl.bemerkung)+'</div>';
-    body+='<div class="dacts">'+
-      '<button class="btn xs" onclick="openDelivery(\''+o.id+'\',\''+dl.id+'\')">Bearbeiten</button>'+
-      '<span style="flex:1"></span>'+
-      '<button class="btn xs danger" onclick="delDeliveryFrom(\''+o.id+'\',\''+dl.id+'\')">Löschen</button></div>';
-    body+='</div>';
-  }
-
-  return '<div class="dcard '+cls+(open?' open':'')+'">'+
-    '<div class="dc-head" onclick="toggleCard(\''+dl.id+'\')">'+
-      '<span><span class="dc-n">'+esc(dl.name)+' '+badges+'</span>'+
-        '<span class="dc-m">'+meta.join(' · ')+'</span></span>'+
-      '<span class="dc-a" style="font-size:11px;color:var(--tx3)">'+headRight+'</span>'+
-      '<button class="dc-x">'+(open?'&#x25B2;':'&#x25BC;')+'</button>'+
-    '</div>'+body+'</div>';
-}
-function toggleCard(id){OPENC[id]=!OPENC[id];renderDetail();}
-function toggleAllCards(){
-  var o=SEL?fO(SEL):null;if(!o)return;
-  var anyClosed=(o.deliveries||[]).some(function(d){return !OPENC[d.id];});
-  (o.deliveries||[]).forEach(function(d){OPENC[d.id]=anyClosed;});
-  document.getElementById('dtToggle').textContent=anyClosed?'alle zuklappen':'alle aufklappen';
-  renderDetail();
-}
 function bookIn(oid,did){
   event.stopPropagation();
   var dl=fD(oid,did);if(!dl)return;
@@ -1114,90 +1123,6 @@ function delDeliveryFrom(oid,did){
   sv();render();
 }
 
-/* ══ ZAHLUNGSPLAN ══ */
-function renderZplan(){
-  var h=todayStr(),rows=[];
-  (ST.orders||[]).forEach(function(o){
-    allPays(o).forEach(function(e){
-      if(e.p.paidDate)return;
-      rows.push({o:o,dl:e.dl,p:e.p,late:!!(e.p.dueDate&&e.p.dueDate<h)});
-    });
-  });
-  rows.sort(function(a,b){
-    if(a.late!==b.late)return a.late?-1:1;
-    return String(a.p.dueDate||'9999').localeCompare(String(b.p.dueDate||'9999'));
-  });
-  var cnt=document.getElementById('zpCnt');if(cnt)cnt.textContent=rows.length?rows.length:'';
-  if(!rows.length){document.getElementById('zplan').innerHTML=
-    '<div class="empty">Keine offenen Zahlungen.</div>';return;}
-  document.getElementById('zplan').innerHTML=rows.map(function(r){
-    var p=r.p;
-    return '<div class="ztl'+(r.late?' late':'')+'">'+
-      '<span class="ztl-d">'+(p.dueDate?fdShort(p.dueDate):'offen')+'</span>'+
-      '<span class="ztl-b"><span class="ztl-t">'+esc(p.ref||'Zahlung')+
-        (p.refNr?' <span class="tag tg-grey">'+esc(p.refNr)+'</span>':'')+'</span>'+
-        '<span class="ztl-s">'+(r.dl?esc(r.dl.name)+' · ':'')+esc(r.o.ref||r.o.name)+
-        (r.late&&p.dueDate?' · '+daysBetween(p.dueDate,h)+' Tage':'')+'</span></span>'+
-      '<button class="btn xs" onclick="markPaid(\''+r.o.id+'\',\''+(r.dl?r.dl.id:'')+'\',\''+p.id+'\')">Bezahlt</button>'+
-    '</div>';
-  }).join('');
-}
-var DOC_ONLY_MISSING=true;
-function toggleDocView(){DOC_ONLY_MISSING=!DOC_ONLY_MISSING;
-  var t=document.getElementById('docToggle');if(t)t.textContent=DOC_ONLY_MISSING?'nur fehlende':'alle zeigen';
-  renderDocs();}
-function renderDocs(){
-  var a=sortedOrders(),totalMiss=0;
-  var blocks=a.map(function(o){
-    var d=docStatus(o);totalMiss+=d.missing.length;
-    if(DOC_ONLY_MISSING&&d.missing.length===0)return '';
-    var pct=d.need>0?(d.have/d.need*100):100;
-    var chips=d.missing.length
-      ? d.missing.map(function(m){
-          return '<span class="dchip" onclick="openDoc(\''+o.id+'\',\''+
-            (m.dlId||'')+'\',\''+m.t+'\')">'+esc(m.label)+' · '+esc(m.scope)+'</span>';
-        }).join('')
-      : '<span class="dchip ok">alle Pflichtdokumente vorhanden</span>';
-    return '<div class="doc"><div class="doch"><span class="nm">'+esc(o.ref||o.name)+'</span>'+
-      '<span class="ct">'+d.have+' / '+d.need+' Pflicht</span>'+
-      '<button class="btn xs" style="margin-left:8px" onclick="selectOrder(\''+o.id+'\')">öffnen</button></div>'+
-      '<div class="dbar"><i style="width:'+pct.toFixed(0)+'%"></i></div>'+
-      '<div class="dmiss">'+chips+'</div></div>';
-  }).filter(Boolean).join('');
-  if(!blocks)blocks='<div class="empty">Alle Pflichtdokumente vollständig. 🎉</div>';
-  document.getElementById('docs').innerHTML=blocks;
-  document.getElementById('docCnt').textContent=totalMiss?(totalMiss+' fehlen'):'vollständig';
-}
-function renderPlan(){
-  var h=todayStr(),rows=[];
-  (ST.orders||[]).forEach(function(o){
-    (o.deliveries||[]).forEach(function(dl){
-      if(dl.kind==='anzahlung')return;
-      if(n2(dl.stk_ordered)<=0)return;
-      rows.push({o:o,dl:dl});
-    });
-  });
-  rows.sort(function(a,b){return String(a.dl.deliveryDate||'9999').localeCompare(String(b.dl.deliveryDate||'9999'));});
-  if(!rows.length){document.getElementById('plan').innerHTML=
-    '<div class="empty">Keine Lieferungen erfasst.</div>';return;}
-  document.getElementById('plan').innerHTML=rows.map(function(r){
-    var dl=r.dl,tot=n2(dl.stk_ordered)||1,ang=istAngekommen(dl);
-    var fl=(dl.flavors||[]).filter(function(f){return n2(f.qty)>0;});
-    var stack = fl.length
-      ? fl.map(function(f){
-          return '<span class="'+flavCls(f.name)+'" style="width:'+
-            Math.max(7,(n2(f.qty)/tot*100)).toFixed(1)+'%">'+esc(f.name.slice(0,3))+' '+fnum(f.qty)+'</span>';
-        }).join('')
-      : '<span class="f-x" style="width:100%">'+fnum(dl.stk_ordered)+' Stk</span>';
-    var status = ang ? '<span class="tag tg-ok">angekommen</span>'
-      : (dl.deliveryDate&&dl.deliveryDate<h ? '<span class="tag tg-late">überfällig</span>'
-      : (dl.shipDate&&dl.deliveryDate&&dl.deliveryDate>dl.shipDate?'<span class="tag tg-info">verschoben</span>':'<span class="tag tg-open">erwartet</span>'));
-    return '<div class="dl'+(ang?' dl-done':'')+'" style="cursor:pointer" onclick="selectOrder(\''+r.o.id+'\')">'+
-      '<span class="d">'+fdShort(dl.deliveryDate)+'</span>'+
-      '<span class="stack">'+stack+'</span>'+
-      '<span>'+esc(r.o.ref||'')+' · '+esc(dl.name)+' '+status+'</span></div>';
-  }).join('');
-}
 
 /* ══════════ AKTIONEN ══════════ */
 function setSort(v){SORT=v;render();}
@@ -1353,7 +1278,7 @@ function createOrder(){
   });
   ST.orders.push(o);
   sv();render();closeOv('ovNew');
-  SEL=oid;render();
+  OO[oid]=true;render();
 }
 
 /* ── Lieferung ── */
@@ -1633,29 +1558,29 @@ function rmDoc(oid,did,attId){
 /* ── Drag & Drop ── */
 var dragEl=null;
 function wireDrag(){
-  var list=document.getElementById('orders');
+  var list=document.getElementById('root');
   if(!list||list._wired)return;
   list._wired=true;
   list.addEventListener('dragstart',function(e){
-    var o=e.target.closest('.ord');if(!o)return;
+    var o=e.target.closest('.order');if(!o)return;
     dragEl=o;o.classList.add('dragging');
   });
   list.addEventListener('dragend',function(){
     if(dragEl)dragEl.classList.remove('dragging');
-    document.querySelectorAll('.ord').forEach(function(x){x.classList.remove('over');});
+    document.querySelectorAll('.order').forEach(function(x){x.classList.remove('over');});
     dragEl=null;persistOrder();
   });
   list.addEventListener('dragover',function(e){
     e.preventDefault();
-    var o=e.target.closest('.ord');if(!o||o===dragEl)return;
-    document.querySelectorAll('.ord').forEach(function(x){x.classList.remove('over');});
+    var o=e.target.closest('.order');if(!o||o===dragEl)return;
+    document.querySelectorAll('.order').forEach(function(x){x.classList.remove('over');});
     o.classList.add('over');
     var r=o.getBoundingClientRect();
     list.insertBefore(dragEl,((e.clientY-r.top)/r.height>0.5)?o.nextSibling:o);
   });
 }
 function persistOrder(){
-  var ids=Array.prototype.map.call(document.querySelectorAll('#orders .ord'),
+  var ids=Array.prototype.map.call(document.querySelectorAll('#root .order'),
     function(e){return e.getAttribute('data-id');});
   ids.forEach(function(id,i){var o=fO(id);if(o)o.sortOrder=i;});
   sv();render();
