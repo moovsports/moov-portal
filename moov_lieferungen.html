@@ -680,9 +680,30 @@ var DOC_TYPES=[
 function docLabel(t){var d=DOC_TYPES.find(function(x){return x.id===t;});return d?d.label:'Dokument';}
 function docIsMoney(t){var d=DOC_TYPES.find(function(x){return x.id===t;});return !!(d&&d.money);}
 
-var FLAVS=['Zitrone','Orange','Waldbeere','Limited'];
+var FLAVS_BASE=['Zitrone','Orange','Waldbeere','Limited'];
+var FLAVS=FLAVS_BASE.slice();
+// eigene Geschmäcker aus den Daten sammeln, damit sie erhalten bleiben
+function refreshFlavs(){
+  var seen={};FLAVS_BASE.forEach(function(f){seen[f]=1;});
+  var extra=[];
+  (ST&&ST.orders||[]).forEach(function(o){(o.deliveries||[]).forEach(function(dl){
+    (dl.flavors||[]).forEach(function(f){if(f.name&&!seen[f.name]){seen[f.name]=1;extra.push(f.name);}});});});
+  (CUSTOM_FLAVS||[]).forEach(function(f){if(!seen[f]){seen[f]=1;extra.push(f);}});
+  FLAVS=FLAVS_BASE.concat(extra.sort());
+}
+var CUSTOM_FLAVS=[];
+var FLAV_PALETTE=[['#F7E9C4','#6B5316'],['#F7D9C4','#7A4A24'],['#E2D8EE','#4A3363'],
+  ['#D4E4F2','#234863'],['#D8ECD8','#2E5A34'],['#F2D8E4','#6B2846'],['#E8E4CC','#5A5528'],['#D4E8E8','#245858']];
+function flavColor(n){
+  var known={'Zitrone':0,'Orange':1,'Waldbeere':2,'Limited':3};
+  var i = (n in known) ? known[n] : (4 + (FLAVS.indexOf(n)-4));
+  if(i<0||i>=FLAV_PALETTE.length){ // Hash-Fallback
+    var s=0;for(var k=0;k<n.length;k++)s+=n.charCodeAt(k);i=s%FLAV_PALETTE.length;}
+  return FLAV_PALETTE[i];
+}
 var MONS=['Jan','Feb','Mär','Apr','Mai','Jun','Jul','Aug','Sep','Okt','Nov','Dez'];
-function flavCls(n){return FLAVS.indexOf(n)>=0?('f-'+n):'f-x';}
+function flavCls(n){return FLAVS_BASE.indexOf(n)>=0?('f-'+n):'f-x';}
+function flavStyle(n){var c=flavColor(n);return 'background:'+c[0]+';color:'+c[1]+';';}
 
 /* ── Zahlungsregeln ── */
 var ANZAHLUNG_PCT=0.30, WOCHEN_VOR=8, TAGE_NACH=14;
@@ -993,7 +1014,7 @@ function delNode(o,dl){
     var fl=(dl.flavors||[]).filter(function(f){return n2(f.qty)>0;});
     if(fl.length){var tot=n2(dl.stk_ordered)||fl.reduce(function(s,f){return s+n2(f.qty);},0)||1;
       fbar='<div class="fbar">'+fl.map(function(f){
-        return '<span class="'+flavCls(f.name)+'" style="width:'+Math.max(9,n2(f.qty)/tot*100).toFixed(1)+'%">'+
+        return '<span style="'+flavStyle(f.name)+'width:'+Math.max(9,n2(f.qty)/tot*100).toFixed(1)+'%">'+
           esc(f.name.slice(0,1))+' '+fnum(f.qty)+'</span>';}).join('')+'</div>';
     } else if(n2(dl.stk_ordered)>0){
       fbar='<div class="fbar"><span class="f-x" style="width:100%">'+fnum(dl.stk_ordered)+' Stk</span></div>';}
@@ -1032,7 +1053,7 @@ function delBody(o,dl){
   if((dl.flavors||[]).length){
     b+='<div class="sect sect2">Geschmäcker</div><div>'+
       dl.flavors.filter(function(f){return n2(f.qty)>0;}).map(function(f){
-        return '<span class="fpill '+flavCls(f.name)+'">'+esc(f.name)+' '+fnum(f.qty)+'</span>';}).join('')+'</div>';
+        return '<span class="fpill" style="'+flavStyle(f.name)+'">'+esc(f.name)+' '+fnum(f.qty)+'</span>';}).join('')+'</div>';
   }
 
   // Teilzahlungen (Termine, keine Beträge)
@@ -1294,12 +1315,13 @@ function addDelivery(oid){
 function openDelivery(oid,did){
   var o=fO(oid),dl=fD(oid,did);if(!o||!dl)return;
   CUR.oid=oid;CUR.did=did;
+  refreshFlavs();
   var cur=o.currency||'EUR';
   document.getElementById('delTitle').textContent=dl.name||'Lieferung';
   var flavRows=FLAVS.map(function(fn){
     var f=(dl.flavors||[]).find(function(x){return x.name===fn;});
-    return '<div><div class="lbl" style="margin-top:0">'+fn+'</div>'+
-      '<input class="fld f-in" id="d_f_'+fn+'" value="'+(f?n2(f.qty):'')+'" placeholder="0" '+
+    return '<div><div class="lbl" style="margin-top:0">'+esc(fn)+'</div>'+
+      '<input class="fld f-in" id="d_f_'+cssId(fn)+'" data-flav="'+esc(fn)+'" value="'+(f?n2(f.qty):'')+'" placeholder="0" '+
       'inputmode="numeric" oninput="flavSum()"></div>';
   }).join('');
   var presets=['Lieferung 1','Lieferung 2','Lieferung 3','Lieferung 4','Lieferung 5','Lieferung 6',
@@ -1322,9 +1344,12 @@ function openDelivery(oid,did){
         '<input class="fld" id="d_rec" value="'+(dl.stk_received||'')+'" inputmode="numeric"></div></div>'+
 
     '<div class="lbl">Geschmäcker <span id="flavSum" class="fsum"></span></div>'+
-    '<div class="frow3">'+flavRows+'</div>'+
-    '<div style="text-align:right;margin-top:6px">'+
-      '<button class="btn xs" onclick="flavToStk()">Summe → Stück bestellt</button></div>'+
+    '<div class="frow3" id="flavGrid">'+flavRows+'</div>'+
+    '<div style="display:flex;gap:7px;margin-top:8px;align-items:center">'+
+      '<input class="fld" id="d_newflav" placeholder="Neuer Geschmack, z.B. Pfirsich" style="flex:1" '+
+        'onkeydown="if(event.key===\'Enter\'){event.preventDefault();addFlav();}">'+
+      '<button class="btn sm" onclick="addFlav()">+ hinzufügen</button>'+
+      '<button class="btn sm" onclick="flavToStk()">Summe → Stück</button></div>'+
 
     '<div class="lbl">Versandkosten</div>'+
     '<div class="frow">'+
@@ -1334,7 +1359,7 @@ function openDelivery(oid,did){
         '<option value="svz"'+(dl.shippingPayer==='svz'?' selected':'')+'>zahlt SVZ</option>'+
       '</select></div>'+
     '<div class="rs" style="font-size:11px;color:var(--tx3);margin-top:5px">'+
-      'Nur selbst bezahlter Versand zählt in «Offen gesamt».</div>'+
+      'Versandkosten pflegst du im Excel — hier nur wer zahlt.</div>'+
 
     '<div class="lbl">Dokumente</div>'+
     DOC_TYPES.filter(function(x){return x.level==='delivery';}).map(function(dt){
@@ -1357,9 +1382,11 @@ function openDelivery(oid,did){
   flavSum();
 }
 function setDelName(n){var e=document.getElementById('d_name');if(e)e.value=n;}
+function cssId(s){return String(s).replace(/[^a-zA-Z0-9]/g,'_');}
+function flavInputs(){return Array.prototype.slice.call(document.querySelectorAll('#flavGrid input[data-flav]'));}
 function flavSum(){
   var box=document.getElementById('flavSum');if(!box)return;
-  var s=0;FLAVS.forEach(function(fn){s+=n2(val('d_f_'+fn));});
+  var s=0;flavInputs().forEach(function(inp){s+=n2(inp.value);});
   var stk=n2(val('d_stk'));
   if(s===0){box.textContent='';return;}
   var ok=stk>0&&s===stk;
@@ -1367,23 +1394,47 @@ function flavSum(){
     fnum(s)+(stk>0?(' / '+fnum(stk)+(ok?' ✓':' ✗')):'')+'</span>';
 }
 function flavToStk(){
-  var s=0;FLAVS.forEach(function(fn){s+=n2(val('d_f_'+fn));});
+  var s=0;flavInputs().forEach(function(inp){s+=n2(inp.value);});
   var e=document.getElementById('d_stk');if(e){e.value=s;flavSum();}
 }
+function addFlav(){
+  var inp=document.getElementById('d_newflav');if(!inp)return;
+  var name=inp.value.trim();if(!name)return;
+  // gleiche Schreibweise wie bestehende? dann nicht doppeln
+  refreshFlavs();
+  var exists=FLAVS.some(function(f){return f.toLowerCase()===name.toLowerCase();});
+  if(!exists){CUSTOM_FLAVS.push(name);refreshFlavs();}
+  else{name=FLAVS.filter(function(f){return f.toLowerCase()===name.toLowerCase();})[0];}
+  // aktuelle Eingaben merken, Grid neu zeichnen, neues Feld anfügen
+  var cur={};flavInputs().forEach(function(x){cur[x.getAttribute('data-flav')]=x.value;});
+  var grid=document.getElementById('flavGrid');
+  if(grid&&!grid.querySelector('input[data-flav="'+name.replace(/"/g,'')+'"]')){
+    var div=document.createElement('div');
+    div.innerHTML='<div class="lbl" style="margin-top:0">'+esc(name)+'</div>'+
+      '<input class="fld f-in" id="d_f_'+cssId(name)+'" data-flav="'+esc(name)+'" value="" placeholder="0" inputmode="numeric" oninput="flavSum()">';
+    grid.appendChild(div);
+  }
+  inp.value='';
+  var nf=document.getElementById('d_f_'+cssId(name));if(nf)nf.focus();
+  flavSum();
+}
 function saveDelivery(){
-  var dl=fD(CUR.oid,CUR.did);if(!dl)return;
-  dl.name=val('d_name');
-  dl.shipDate=val('d_ship');dl.deliveryDate=val('d_recv');
+  var dl=fD(CUR.oid,CUR.did);if(!dl){alert('Lieferung nicht gefunden — bitte erneut öffnen.');return;}
+  dl.name=val('d_name')||dl.name;
+  var ship=document.getElementById('d_ship'), recv=document.getElementById('d_recv');
+  if(ship)dl.shipDate=ship.value;
+  if(recv)dl.deliveryDate=recv.value;   // direkt vom Feld, kein trim
   dl.stk_ordered=n2(val('d_stk'));dl.stk_received=n2(val('d_rec'));
   dl.shippingCost=n2(val('d_ship_cost'));
   var sel=document.getElementById('d_ship_payer');
   dl.shippingPayer=sel?sel.value:'moov';
-  dl.flavors=FLAVS.map(function(fn){return {name:fn,qty:n2(val('d_f_'+fn))};})
-    .filter(function(f){return f.qty>0;});
+  // Geschmäcker aus allen Feldern lesen (auch neu hinzugefügte)
+  var fl=[];flavInputs().forEach(function(inp){
+    var q=n2(inp.value);if(q>0)fl.push({name:inp.getAttribute('data-flav'),qty:q});});
+  dl.flavors=fl;
   var o=fO(CUR.oid);
   if(o&&n2(o.unitPrice)>0)dl.netPrice=r2(dl.stk_ordered*n2(o.unitPrice));
   sv();render();closeOv('ovDel');
-  
 }
 function delDelivery(){
   var o=fO(CUR.oid),dl=fD(CUR.oid,CUR.did);if(!o||!dl)return;
