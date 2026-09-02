@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>PF0051 hinzufügen</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+body{font-family:system-ui,sans-serif;background:#EDEDEB;color:#1A1A19;max-width:640px;margin:0 auto;padding:24px 18px;line-height:1.5;}
+h1{font-size:20px;} .card{background:#fff;border-radius:14px;padding:18px 20px;margin:14px 0;box-shadow:0 1px 2px rgba(0,0,0,.05);}
+.btn{font-size:14px;font-weight:600;padding:11px 18px;border-radius:10px;border:1px solid #D8D8D6;background:#fff;cursor:pointer;margin-right:8px;}
+.btn.dark{background:#1A1A19;color:#fff;border-color:#1A1A19;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.log{font-family:ui-monospace,monospace;font-size:12px;background:#F5F5F4;border-radius:10px;padding:12px;margin-top:12px;white-space:pre-wrap;max-height:340px;overflow:auto;}
+.ok{color:#3F7A5A;} .err{color:#B4544A;} .warn{color:#9A7B2E;}
+.row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #E9E9E7;font-size:13px;}
+</style></head><body>
+<h1>Bestellung PF0051 hinzufügen</h1>
+<div class="card">
+<p>Fügt den neuen Auftrag <b>PF0051</b> (50'000 Boxen, 5 Teillieferungen) zu deinem Portal hinzu — <b>ohne</b> die bestehenden Bestellungen zu verändern.</p>
+<div id="preview"></div>
+</div>
+<div class="card">
+<button class="btn" onclick="backup()">1 · Backup herunterladen</button>
+<button class="btn dark" id="impBtn" onclick="doImport()" disabled>2 · PF0051 hinzufügen</button>
+<div class="log" id="log">Verbinde mit Supabase…</div>
+</div>
+<script>
+var NEW={"id":"nc29a6a545c42a894","name":"PF0051","ref":"PF0051","supplier":"NRSH GmbH","currency":"EUR","totalUnits":50000,"unitPrice":4.05,"sortOrder":10,"zahlungskonditionen":"30% Verpackung einmalig, je Teillieferung 50% Anzahlung (6 Wo vorher) + 50% bei Lieferung","attachments":[],"payments":[{"id":"n1f8e5e95ed94b824","ref":"Verpackungsanteil 30%","refNr":"PF0051.VP","amount":60750.0,"amount_paid":0,"dueDate":"2026-09-02","paidDate":"","notes":"Einmalzahlung"}],"deliveries":[{"id":"n4b278fd6b4647ae6","name":"Lieferung 1","kind":"lieferung","deliveryDate":"2026-12-01","shipDate":"2026-12-01","stk_ordered":7840,"stk_received":0,"netPrice":31752.0,"shippingCost":0,"shippingPayer":"moov","paletten":8,"rechnungNr":"PF0051.01","spediteur":"Streck","flavors":[{"name":"Zitrone","qty":1470},{"name":"Orange","qty":1470},{"name":"Mango","qty":2450},{"name":"Pfirsich","qty":2450}],"attachments":[],"payments":[{"id":"ne1e3847781e7192e","ref":"Anzahlung 50%","refNr":"PF0051.01 Anzahlung","amount":11113.2,"amount_paid":0,"dueDate":"2026-10-20","paidDate":"","notes":"6 Wochen vor Ankunft"},{"id":"nee6f6aa02b46fbb2","ref":"Restbetrag 50%","refNr":"PF0051.01 Restbetrag","amount":11113.2,"amount_paid":0,"dueDate":"2026-12-01","paidDate":"","notes":"bei Lieferung"}]},{"id":"nd9ff5e4b022f05be","name":"Lieferung 2","kind":"lieferung","deliveryDate":"2027-01-05","shipDate":"2027-01-05","stk_ordered":8820,"stk_received":0,"netPrice":35721.0,"shippingCost":0,"shippingPayer":"moov","paletten":9,"rechnungNr":"PF0051.02","spediteur":"Streck","flavors":[{"name":"Zitrone","qty":1960},{"name":"Orange","qty":2450},{"name":"Waldbeere","qty":980},{"name":"Mango","qty":1960},{"name":"Pfirsich","qty":1470}],"attachments":[],"payments":[{"id":"nd0b7befe72f82ca2","ref":"Anzahlung 50%","refNr":"PF0051.02 Anzahlung","amount":12502.35,"amount_paid":0,"dueDate":"2026-11-24","paidDate":"","notes":"6 Wochen vor Ankunft"},{"id":"n65565ed08e5a1ceb","ref":"Restbetrag 50%","refNr":"PF0051.02 Restbetrag","amount":12502.35,"amount_paid":0,"dueDate":"2027-01-05","paidDate":"","notes":"bei Lieferung"}]},{"id":"n5da67a8036687b48","name":"Lieferung 3","kind":"lieferung","deliveryDate":"2027-02-02","shipDate":"2027-02-02","stk_ordered":10780,"stk_received":0,"netPrice":43659.0,"shippingCost":0,"shippingPayer":"moov","paletten":11,"rechnungNr":"PF0051.03","spediteur":"Streck","flavors":[{"name":"Zitrone","qty":1470},{"name":"Orange","qty":1960},{"name":"Waldbeere","qty":2450},{"name":"Mango","qty":1470},{"name":"Pfirsich","qty":1470},{"name":"Limited Edition 1","qty":1960}],"attachments":[],"payments":[{"id":"n6b3c07838c100b30","ref":"Anzahlung 50%","refNr":"PF0051.03 Anzahlung","amount":15280.65,"amount_paid":0,"dueDate":"2026-12-22","paidDate":"","notes":"6 Wochen vor Ankunft"},{"id":"nd91279c0ad94a20a","ref":"Restbetrag 50%","refNr":"PF0051.03 Restbetrag","amount":15280.65,"amount_paid":0,"dueDate":"2027-02-02","paidDate":"","notes":"bei Lieferung"}]},{"id":"n0c5ae97b0041e2b7","name":"Lieferung 4","kind":"lieferung","deliveryDate":"2027-03-01","shipDate":"2027-03-01","stk_ordered":12740,"stk_received":0,"netPrice":51597.0,"shippingCost":0,"shippingPayer":"moov","paletten":13,"rechnungNr":"PF0051.04","spediteur":"Streck","flavors":[{"name":"Zitrone","qty":2450},{"name":"Orange","qty":2450},{"name":"Waldbeere","qty":2940},{"name":"Mango","qty":2450},{"name":"Pfirsich","qty":2450}],"attachments":[],"payments":[{"id":"n69d2480bbad72d02","ref":"Anzahlung 50%","refNr":"PF0051.04 Anzahlung","amount":18058.95,"amount_paid":0,"dueDate":"2027-01-18","paidDate":"","notes":"6 Wochen vor Ankunft"},{"id":"n644f517214382735","ref":"Restbetrag 50%","refNr":"PF0051.04 Restbetrag","amount":18058.95,"amount_paid":0,"dueDate":"2027-03-01","paidDate":"","notes":"bei Lieferung"}]},{"id":"nf987b1a2d3a25f13","name":"Lieferung 5","kind":"lieferung","deliveryDate":"2027-04-01","shipDate":"2027-04-01","stk_ordered":9820,"stk_received":0,"netPrice":39771.0,"shippingCost":0,"shippingPayer":"moov","paletten":10,"rechnungNr":"PF0051.05","spediteur":"Streck","flavors":[{"name":"Zitrone","qty":1980},{"name":"Orange","qty":1960},{"name":"Waldbeere","qty":2450},{"name":"Mango","qty":1470},{"name":"Pfirsich","qty":980},{"name":"Limited Edition 2","qty":980}],"attachments":[],"payments":[{"id":"nb1c889b2c4f14fa2","ref":"Anzahlung 50%","refNr":"PF0051.05 Anzahlung","amount":13919.85,"amount_paid":0,"dueDate":"2027-02-18","paidDate":"","notes":"6 Wochen vor Ankunft"},{"id":"n00c711fb565ce8a1","ref":"Restbetrag 50%","refNr":"PF0051.05 Restbetrag","amount":13919.85,"amount_paid":0,"dueDate":"2027-04-01","paidDate":"","notes":"bei Lieferung"}]}]};
+var KEY='moov_lieferungen';
+var sb=null, current=null;
+function log(m,c){var e=document.getElementById('log');e.innerHTML+='\n'+(c?'<span class="'+c+'">'+m+'</span>':m);e.scrollTop=e.scrollHeight;}
+
+(function preview(){
+  var p=document.getElementById('preview');
+  var allp=NEW.payments.slice();NEW.deliveries.forEach(function(d){allp=allp.concat(d.payments);});
+  var soll=allp.reduce(function(s,x){return s+x.amount;},0);
+  p.innerHTML='<div class="row"><span>Bestellung</span><b>'+NEW.ref+'</b></div>'+
+    '<div class="row"><span>Menge</span><b>'+NEW.totalUnits.toLocaleString('de-CH')+' Boxen</b></div>'+
+    '<div class="row"><span>Teillieferungen</span><b>'+NEW.deliveries.length+'</b></div>'+
+    '<div class="row"><span>Zahlungstermine</span><b>'+allp.length+'</b></div>'+
+    '<div class="row"><span>Auftragswert</span><b>EUR '+soll.toLocaleString('de-CH',{minimumFractionDigits:2})+'</b></div>';
+})();
+
+function initSb(){
+  var url=localStorage.getItem('sb_url'), key=localStorage.getItem('sb_key');
+  if(!url||!key){log('Keine Supabase-Zugangsdaten gefunden. Bitte zuerst im Portal einloggen.','err');return false;}
+  sb=supabase.createClient(url,key);return true;
+}
+async function load(){
+  if(!initSb())return;
+  try{
+    var r=await sb.from('portal_state').select('data').eq('key',KEY).maybeSingle();
+    if(r.error)throw r.error;
+    current=r.data&&r.data.data?r.data.data:{orders:[]};
+    if(typeof current==='string')current=JSON.parse(current);
+    log('Aktueller Stand geladen: '+(current.orders?current.orders.length:0)+' Bestellungen.','ok');
+    var exists=(current.orders||[]).some(function(o){return o.ref==='PF0051';});
+    if(exists)log('⚠ PF0051 ist bereits vorhanden — der Import würde sie NICHT doppelt anlegen, sondern abbrechen.','warn');
+    document.getElementById('impBtn').disabled=false;
+  }catch(e){log('Fehler beim Laden: '+e.message,'err');}
+}
+function backup(){
+  if(!current){log('Erst laden.','err');return;}
+  var blob=new Blob([JSON.stringify(current,null,1)],{type:'application/json'});
+  var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='moov_lieferungen_backup_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+  log('Backup heruntergeladen.','ok');
+}
+async function doImport(){
+  if(!current){log('Erst laden.','err');return;}
+  if((current.orders||[]).some(function(o){return o.ref==='PF0051';})){
+    log('PF0051 existiert bereits — Import abgebrochen (keine Dopplung).','warn');return;}
+  document.getElementById('impBtn').disabled=true;
+  try{
+    // Backup in Supabase
+    await sb.from('portal_state').upsert({key:'moov_lieferungen_backup',data:current});
+    log('Sicherung in Supabase abgelegt (Key moov_lieferungen_backup).','ok');
+    if(!Array.isArray(current.orders))current.orders=[];
+    current.orders.push(NEW);
+    var w=await sb.from('portal_state').upsert({key:KEY,data:current});
+    if(w.error)throw w.error;
+    log('✓ PF0051 hinzugefügt. Jetzt '+current.orders.length+' Bestellungen.','ok');
+    log('Fertig! Portal neu laden (Cmd+Shift+R). Diese Seite kannst du danach löschen.','ok');
+  }catch(e){log('Fehler: '+e.message,'err');document.getElementById('impBtn').disabled=false;}
+}
+load();
+</script></body></html>
