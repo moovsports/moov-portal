@@ -273,7 +273,7 @@ function checkGate(){
     <div class="history-card">
       <table class="ht" id="history-table">
         <thead><tr>
-          <th>KW</th><th>Umsatz</th><th>Meta</th><th>ROAS</th><th>Gewinn</th><th>Marge</th><th>CPA</th>
+          <th>KW</th><th>Umsatz</th><th>Werbung</th><th>ROAS</th><th>Gewinn</th><th>Marge</th><th>CPA</th>
         </tr></thead>
         <tbody id="history-body"></tbody>
       </table>
@@ -535,19 +535,23 @@ function rf(n){return(parseFloat(n)||0).toFixed(2)+'x';}
 function calc(w,s){
   var u=parseFloat(w.umsatz)||0,b=parseFloat(w.bestellungen)||0,a=parseFloat(w.artikel)||0;
   var m=parseFloat(w.meta)||0,r=parseFloat(w.retouren)||0,ex=parseFloat(w.extra)||0;
+  var g=parseFloat(w.google)||0, tt=parseFloat(w.tiktok)||0, inf=parseFloat(w.influencer)||0;
+  var ads=m+g+tt+inf, mkt=ads;
   var cogs=a*(parseFloat(s.cogs_per_unit)||6);
   var svz=b*(parseFloat(s.svz_per_order)||10.99);
   var fee=u*(parseFloat(s.payment_fee_pct)||2.8)/100;
   var cow=parseFloat(s.coworking_weekly)||64.62;
   var sh=parseFloat(s.shopify_weekly)||32.31;
   var fix=cow+sh;
-  var total_costs=cogs+svz+fee+fix+m+r+ex;
+  var total_costs=cogs+svz+fee+fix+mkt+r+ex;
   var gewinn=u-total_costs;
   var marge=u>0?gewinn/u*100:0;
-  var roas=m>0?u/m:0;
-  var cpa=b>0?m/b:0;
-  return{u:u,b:b,a:a,m:m,r:r,ex:ex,cogs:cogs,svz:svz,fee:fee,cow:cow,sh:sh,fix:fix,
-    total_costs:total_costs,gewinn:gewinn,marge:marge,roas:roas,cpa:cpa};
+  var roas=ads>0?u/ads:0;
+  var roas_meta=m>0?u/m:0, roas_mkt=mkt>0?u/mkt:0;
+  var cpa=b>0?ads/b:0;
+  return{u:u,b:b,a:a,m:m,g:g,tt:tt,inf:inf,ads:ads,mkt:mkt,r:r,ex:ex,
+    cogs:cogs,svz:svz,fee:fee,cow:cow,sh:sh,fix:fix,
+    total_costs:total_costs,gewinn:gewinn,marge:marge,roas:roas,roas_meta:roas_meta,roas_mkt:roas_mkt,cpa:cpa};
 }
 
 // TABS
@@ -604,6 +608,9 @@ function renderWeekView(){
       row('Bestellungen', (w.bestellungen||0))+
       row('Artikel', (w.artikel||0))+
       row('Meta Ads (CHF)', cf(w.meta||0))+
+      row('Google Ads (CHF)', cf(w.google||0))+
+      row('TikTok Ads (CHF)', cf(w.tiktok||0))+
+      row('Influencermarketing (CHF)', cf(w.influencer||0))+
       row('Retouren (CHF)', cf(w.retouren||0))+
       row('Weitere Kosten', cf(w.extra||0));
   }
@@ -627,7 +634,7 @@ function updateResultCards(c){
   el.innerHTML=
     rc('Gewinn',cf(c.gewinn),'nach allen Kosten',c.gewinn>=0?'pos':'neg')+
     rc('Nettomarge',pf(c.marge),'nach allen Kosten',c.marge>=20?'pos':c.marge>=0?'':'neg')+
-    rc('ROAS',rf(c.roas),cf(c.m)+' Meta Spend',c.roas>=2.5?'pos':c.roas>=1?'amber':'neg')+
+    rc('ROAS',rf(c.roas),cf(c.ads)+' Werbe-Spend gesamt',c.roas>=2.5?'pos':c.roas>=1?'amber':'neg')+
     rc('CPA',cf(c.cpa),'pro Bestellung','');
 }
 function updateFixChips(c){
@@ -645,12 +652,14 @@ function updateCostBar(c){
   var leg=document.getElementById('cost-legend');
   if(!bar||!c.total_costs)return;
   var t=c.total_costs;
-  var segs=[['COGS',c.cogs,'#1A1A19'],['SVZ',c.svz,'#A79BE8'],['Meta',c.m,'#A79BE8'],['Fees',c.fee,'#9A7B2E'],['Fix',c.fix,'#767674']];
+  var segs=[['COGS',c.cogs,'#1A1A19'],['SVZ',c.svz,'#8E83C9'],['Meta',c.m,'#A79BE8'],
+            ['Google',c.g,'#7FA8D9'],['TikTok',c.tt,'#6BBFB0'],['Influencer',c.inf,'#D9A0C0'],
+            ['Fees',c.fee,'#9A7B2E'],['Fix',c.fix,'#767674']];
   bar.innerHTML=segs.map(function(s){
     var pct=t>0?s[1]/t*100:0;
     return pct>3?'<div class="cost-bar-seg" style="width:'+pct.toFixed(1)+'%;background:'+s[2]+';">'+Math.round(pct)+'%</div>':'';
   }).join('');
-  if(leg)leg.innerHTML=segs.map(function(s){
+  if(leg)leg.innerHTML=segs.filter(function(s){return s[1]>0;}).map(function(s){
     return '<span style="display:flex;align-items:center;gap:4px;"><span style="width:8px;height:8px;border-radius:50%;background:'+s[2]+';display:inline-block;"></span>'+s[0]+' ('+cf(s[1])+' | '+(c.u>0?s[1]/c.u*100:0).toFixed(1)+'% Umsatz)</span>';
   }).join('');
 }
@@ -703,7 +712,7 @@ function renderCharts(){
   var cData=calcs.map(function(c){return parseFloat(c.cpa.toFixed(2));});
   var rWithData=rData.filter(function(r){return r>0;});
   var avgR=rWithData.length?rWithData.reduce(function(a,b){return a+b;},0)/rWithData.length:0;
-  var beData=nonRef.map(function(w){var c=calc(w,state.settings);return c.m>0?parseFloat(((c.total_costs-c.m)/c.m+1).toFixed(2)):null;});
+  var beData=nonRef.map(function(w){var c=calc(w,state.settings);return c.ads>0?parseFloat(((c.total_costs-c.ads)/c.ads+1).toFixed(2)):null;});
   var bColors=rData.map(function(r,i){return i===rData.length-1?(r>=avgR?'rgba(79,134,89,.85)':'rgba(201,65,79,.85)'):(r>=avgR?'rgba(79,134,89,.55)':'rgba(201,65,79,.55)');});
   var baseOpt={responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#767674'}}},scales:{x:{ticks:{color:'#A3A3A1',font:{size:10}},grid:{display:false}},y:{ticks:{color:'#A3A3A1',font:{size:10}},grid:{color:'rgba(0,0,0,.05)'}}}};
 
@@ -747,6 +756,9 @@ function renderCharts(){
     {label:'COGS',data:calcs.map(function(c){return parseFloat(c.cogs.toFixed(2));}),backgroundColor:'rgba(26,26,25,.7)',borderRadius:2},
     {label:'SVZ',data:calcs.map(function(c){return parseFloat(c.svz.toFixed(2));}),backgroundColor:'rgba(123,107,232,.7)',borderRadius:2},
     {label:'Meta',data:calcs.map(function(c){return parseFloat(c.m.toFixed(2));}),backgroundColor:'rgba(123,107,232,.7)',borderRadius:2},
+    {label:'Google',data:calcs.map(function(c){return parseFloat(c.g.toFixed(2));}),backgroundColor:'rgba(127,168,217,.75)',borderRadius:2},
+    {label:'TikTok',data:calcs.map(function(c){return parseFloat(c.tt.toFixed(2));}),backgroundColor:'rgba(107,191,176,.75)',borderRadius:2},
+    {label:'Influencer',data:calcs.map(function(c){return parseFloat(c.inf.toFixed(2));}),backgroundColor:'rgba(217,160,192,.75)',borderRadius:2},
     {label:'Fees',data:calcs.map(function(c){return parseFloat(c.fee.toFixed(2));}),backgroundColor:'rgba(169,122,30,.7)',borderRadius:2},
     {label:'Fix',data:calcs.map(function(c){return parseFloat((c.cow+c.sh).toFixed(2));}),backgroundColor:'rgba(90,94,120,.5)',borderRadius:2}
   ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},color:'#767674'}}},
@@ -768,7 +780,7 @@ function renderOverview(){
   });
   function sumW(weeks){
     var u=0,m=0,cg=0,sv=0,fe=0,fi=0,gew=0,best=0;
-    weeks.forEach(function(w){var c=calc(w,state.settings);u+=c.u;m+=c.m;cg+=c.cogs;sv+=c.svz;fe+=c.fee;fi+=c.cow+c.sh;gew+=c.gewinn;best+=c.b;});
+    weeks.forEach(function(w){var c=calc(w,state.settings);u+=c.u;m+=c.ads;cg+=c.cogs;sv+=c.svz;fe+=c.fee;fi+=c.cow+c.sh;gew+=c.gewinn;best+=c.b;});
     return{u:u,m:m,cogs:cg,svz:sv,fee:fe,fix:fi,gew:gew,best:best,roas:m>0?u/m:0,marge:u>0?gew/u*100:0,cpa:best>0?m/best:0};
   }
   var curYear=new Date().getFullYear();
@@ -802,7 +814,7 @@ function renderOverview(){
       '<div class="ov-kpis" style="display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-bottom:14px;">'+
         kpi('Umsatz',cf(s.u),umsatzSub)+
         kpi(s.gew>=0?'Gewinn':'Verlust',cf(s.gew),pf(s.marge)+' Nettomarge',s.gew>=0?'var(--green)':'var(--red)')+
-        kpi('ROAS',rf(s.roas),cf(s.m)+' Meta',s.roas>=2?'var(--green)':s.roas>=1?'var(--amber)':'var(--red)')+
+        kpi('ROAS',rf(s.roas),cf(s.m)+' Werbung gesamt',s.roas>=2?'var(--green)':s.roas>=1?'var(--amber)':'var(--red)')+
         kpi('CPA',cf(s.cpa),s.best+' Bestellungen')+
       '</div>'+
       '<div style="font-family:DM Mono,monospace;font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--tx3);margin-bottom:7px;">Kostenstruktur</div>'+
@@ -822,11 +834,11 @@ function renderOverview(){
         '<td style="padding:8px 12px;font-size:12px;color:'+(c.gewinn>=0?'var(--green)':'var(--red)')+'">'+cf(c.gewinn)+'</td>'+
         '<td style="padding:8px 12px;font-size:12px;">'+pf(c.marge)+'</td>'+
         '<td style="padding:8px 12px;font-size:12px;color:'+(c.roas>=2?'var(--green)':c.roas>=1?'var(--amber)':'var(--red)')+'">'+rf(c.roas)+'</td>'+
-        '<td style="padding:8px 12px;font-size:12px;">'+cf(c.m)+'</td>'+
+        '<td style="padding:8px 12px;font-size:12px;">'+cf(c.ads)+'</td>'+
         '<td style="padding:8px 12px;font-size:12px;">'+cf(c.cpa)+'</td>'+
       '</tr>';
     }).join('');
-    var ths=['KW','Umsatz','Gewinn','Marge','ROAS','Meta Spend','CPA'].map(function(h){
+    var ths=['KW','Umsatz','Gewinn','Marge','ROAS','Werbung','CPA'].map(function(h){
       return'<th style="padding:8px 12px;text-align:left;font-family:DM Mono,monospace;font-size:9px;color:var(--tx3);text-transform:uppercase;letter-spacing:.08em;font-weight:500;border-bottom:1px solid var(--bd);">'+h+'</th>';
     }).join('');
     return'<div style="background:var(--sur);border:1px solid var(--bd);border-radius:14px;overflow:hidden;box-shadow:var(--sh);">'+
@@ -856,7 +868,7 @@ function renderHistory(){
   });
   tbody.innerHTML=nonRef.map(function(w){
     var c=calc(w,state.settings);
-    return'<tr><td>'+w.kw+' / '+w.year+'</td><td>'+cf(c.u)+'</td><td>'+cf(c.m)+'</td>'+
+    return'<tr><td>'+w.kw+' / '+w.year+'</td><td>'+cf(c.u)+'</td><td>'+cf(c.ads)+'</td>'+
       '<td style="color:'+(c.roas>=2?'var(--green)':c.roas>=1?'var(--amber)':'var(--red)')+'">'+rf(c.roas)+'</td>'+
       '<td style="color:'+(c.gewinn>=0?'var(--green)':'var(--red)')+'">'+cf(c.gewinn)+'</td>'+
       '<td>'+pf(c.marge)+'</td><td>'+cf(c.cpa)+'</td></tr>';
