@@ -286,13 +286,22 @@ function checkGate(){
 /* ══════════ PORTAL STORE — Supabase Sync ══════════
    Speichert State in Supabase (geräteübergreifend)
    und spiegelt lokal (Offline-Cache + Fallback).      */
+/* ══════════ ZUGANGSDATEN FUER DIE ANSICHTS-SEITE ══════════
+   Diese Seite laeuft auf fremden Geraeten (Coaching), darum muessen
+   URL und Key hier fest stehen — sonst findet sie die Daten nicht.
+   Den anon-Key findest du in Supabase unter Settings → API → anon public.  */
+var SB_URL = 'https://mwtftfqpttizbvvlrtsd.supabase.co';
+var SB_KEY = 'sb_publishable_fnSyfrSWFdKMM17afph01Q_bwtQzQrQ';
+
 var PS = (function(){
   var sb=null, ok=false, timers={}, badgeEl=null;
 
   function init(){
     if(ok) return true;
     try{
-      var u=localStorage.getItem('sb_url'), k=localStorage.getItem('sb_key');
+      // Ansichts-Seite: feste Zugangsdaten, damit sie auf JEDEM Geraet laedt
+      var u=(typeof SB_URL!=='undefined'&&SB_URL)||localStorage.getItem('sb_url');
+      var k=(typeof SB_KEY!=='undefined'&&SB_KEY)||localStorage.getItem('sb_key');
       if(!u||!k||typeof supabase==='undefined') return false;
       sb=supabase.createClient(u,k);
       ok=true;
@@ -511,20 +520,31 @@ function psLoadWarn(e, bereich){
 (async function boot(){
   PS.init();
   PS.mountBadge();
-  var local=readLocalState();
-  var remote=null;
-  if(PS.ready()){
+  var remote=null, problem='';
+  if(!PS.ready()){
+    problem='Keine Verbindung zur Datenbank — Zugangsdaten fehlen in der Seite.';
+  }else{
     try{ remote=await PS.load(STORE); }
-    catch(e){ console.error('Laden fehlgeschlagen:',e.message); PS.setBadge('err',e.message); }
+    catch(e){ problem='Daten konnten nicht geladen werden: '+e.message; PS.setBadge('err',e.message); }
   }
   PS.disable();                       // Ansichts-Modus: nie in die Cloud schreiben
-  state = (remote && remote.weeks) ? remote : local;   // immer Cloud-Daten zeigen, wenn vorhanden
+  if(remote && remote.weeks){
+    state=remote;
+  }else{
+    if(!problem)problem='In der Datenbank wurden keine Wochen gefunden.';
+    state=readLocalState();
+    var b=document.createElement('div');
+    b.style.cssText='background:#FBE7E3;color:#B4544A;border-radius:12px;padding:12px 15px;'+
+      'font-size:12.5px;margin-bottom:14px;line-height:1.5;';
+    b.innerHTML='<b>Achtung — es werden keine echten Daten angezeigt.</b><br>'+problem;
+    var w=document.querySelector('.wrap');
+    if(w)w.insertBefore(b,w.children[1]||null);
+  }
   if(!state._kwMigrated){
     state.weeks.forEach(function(w){
       if(!w.isRef){var m=String(w.kw).match(/^KW (\d+)$/);if(m)w.kw='KW '+(parseInt(m[1])-1);}
     });
     state._kwMigrated=true;
-    save();
   }
   renderWeekView();
 })();
