@@ -492,7 +492,9 @@ var PS = (function(){
     try{
       var u=localStorage.getItem('sb_url'), k=localStorage.getItem('sb_key');
       if(!u||!k||typeof supabase==='undefined') return false;
-      sb=supabase.createClient(u,k);
+      var secret=localStorage.getItem('sb_secret')||'';
+      var opts=secret?{global:{headers:{'x-app-secret':secret}}}:undefined;
+      sb=supabase.createClient(u,k,opts);
       ok=true;
     }catch(e){ ok=false; }
     return ok;
@@ -670,8 +672,9 @@ var DOC_TYPES=[
   {id:'auftrag',     label:'Auftragsbestätigung',      level:'order',    req:true,  money:false},
   {id:'proforma',    label:'Proforma-Rechnung',        level:'order',    req:false, money:false},
   {id:'rechnung',    label:'Handelsrechnung',          level:'delivery', req:true,  money:false},
-  {id:'evv',         label:'eVV Einfuhr (MWST)',       level:'delivery', req:true,  money:true},
+  {id:'evv',         label:'eVV Einfuhr (MWST)',       level:'delivery', req:true,  money:true, shared:true},
   {id:'zoll',        label:'Zoll-/Speditionsrechnung', level:'delivery', req:true,  money:false},
+  {id:'laborpruefung',label:'Laborprüfung',            level:'delivery', req:true,  money:false, shared:true},
   {id:'lieferschein',label:'Lieferschein / Packliste', level:'delivery', req:false, money:false},
   {id:'cmr',         label:'CMR / Frachtbrief',        level:'delivery', req:false, money:false},
   {id:'zahlung',     label:'Zahlungsbeleg',            level:'delivery', req:false, money:false},
@@ -781,6 +784,10 @@ function docStatus(o){
       });
     }
     (dl.attachments||[]).forEach(function(a){have.push(dl.id+':'+a.docType);});
+    // verknuepfte Dokumente zaehlen als vorhanden (auch aus anderen Bestellungen)
+    DOC_TYPES.filter(function(d){return d.shared;}).forEach(function(d){
+      if(sharedAtts(dl,d.id).length)have.push(dl.id+':'+d.id);
+    });
   });
   var miss=need.filter(function(n){return have.indexOf((n.dlId||'order')+':'+n.t)<0;});
   return {need:need.length,have:need.length-miss.length,missing:miss};
@@ -842,13 +849,45 @@ function delTotals(dl){
   return t;
 }
 /* Dokument-Status je Lieferung */
+/* geteilte Laborprüfung: findet die verlinkte Prüfung in derselben Bestellung */
+/* ── Geteilte Dokumente: eine Datei gilt fuer mehrere Lieferungen,
+      auch ueber Bestellungen hinweg. Verweis liegt auf der Ziel-Lieferung. ── */
+function getLink(dl,dtype){
+  if(dl.linked&&dl.linked[dtype])return dl.linked[dtype];
+  if(dtype==='laborpruefung'&&dl.linkedLabor)return {d:dl.linkedLabor};  // Altbestand
+  return null;
+}
+function setLink(dl,dtype,oid,did){
+  if(!dl.linked)dl.linked={};
+  dl.linked[dtype]={o:oid,d:did};
+  if(dtype==='laborpruefung')delete dl.linkedLabor;
+}
+function clearLink(dl,dtype){
+  if(dl.linked)delete dl.linked[dtype];
+  if(dtype==='laborpruefung')delete dl.linkedLabor;
+}
+function findDelivery(did){
+  var out=null;
+  (ST.orders||[]).forEach(function(o){
+    (o.deliveries||[]).forEach(function(d){if(d.id===did)out={o:o,dl:d};});
+  });
+  return out;
+}
+function sharedAtts(dl,dtype){
+  var l=getLink(dl,dtype);if(!l)return [];
+  var hit=findDelivery(l.d);if(!hit)return [];
+  return (hit.dl.attachments||[]).filter(function(a){return a.docType===dtype;})
+    .map(function(a){var c=Object.assign({},a);c._shared=true;
+      c._srcName=hit.dl.name;c._srcOrder=hit.o.ref||hit.o.name;return c;});
+}
 function delDocs(o,dl){
   if(dl.kind==='anzahlung')return [];
   if(n2(dl.stk_ordered)<=0)return [];   // Dienstleistung: keine Zollpapiere
   var ang=istAngekommen(dl);
   return DOC_TYPES.filter(function(d){return d.level==='delivery';}).map(function(d){
     var atts=(dl.attachments||[]).filter(function(a){return a.docType===d.id;});
-    return {t:d.id,label:d.label,req:d.req,money:d.money,atts:atts,
+    if(d.shared&&!atts.length){atts=sharedAtts(dl,d.id);}   // verknuepfte Datei zaehlt
+    return {t:d.id,label:d.label,req:d.req,money:d.money,atts:atts,shared:!!d.shared,
             need:d.req&&ang, state:atts.length?'y':((d.req&&ang)?'n':'o')};
   });
 }
@@ -1081,16 +1120,29 @@ function delBody(o,dl){
       b+='<div class="sect sect2">Dokumente <span style="color:var(--tx3)">'+have+'/'+need+' Pflicht</span></div><div class="docs">'+
         docs.map(function(d){
           var icon=d.state==='y'?'<span class="dst y">&#x2713;</span>':(d.state==='n'?'<span class="dst n">!</span>':'<span class="dst o">·</span>');
+          var ownAtts=(dl.attachments||[]).filter(function(a){return a.docType===d.t;});
+          var isShared=d.shared&&!ownAtts.length&&d.atts.length>0;
+          var addBtn=isShared
+            ? '<button class="ib" onclick="unlinkDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Verknüpfung lösen">&#x2715;</button>'
+            : '<button class="ib" onclick="openDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Datei hinzufügen">+</button>';
+          var sub=d.atts.length?(d.atts.length+' Datei'+(d.atts.length>1?'en':'')+(isShared?' · verknüpft':'')):(d.need?'Pflicht':'optional');
           var head='<div class="drow'+(d.state==='n'?' miss':'')+(d.state==='o'?' opt':'')+'">'+icon+
-            '<span><span class="dl-n">'+esc(d.label)+(d.atts.length>1?' <span class="tag tg-grey">'+d.atts.length+'</span>':'')+'</span><br>'+
-              '<span class="dl-s">'+(d.atts.length?(d.atts.length+' Datei'+(d.atts.length>1?'en':'')):(d.need?'Pflicht':'optional'))+'</span></span>'+
-            '<button class="ib" onclick="openDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Datei hinzufügen">+</button></div>';
+            '<span><span class="dl-n">'+esc(d.label)+(d.atts.length>1?' <span class="tag tg-grey">'+d.atts.length+'</span>':'')+
+              (isShared?' <span class="tag tg-info">verknüpft</span>':'')+'</span><br>'+
+              '<span class="dl-s">'+sub+'</span></span>'+addBtn+'</div>';
           var files=d.atts.map(function(a){
+            var shareBtn=(d.shared&&!a._shared)
+              ? '<button class="ib" onclick="linkDoc(\''+o.id+'\',\''+dl.id+'\',\''+d.t+'\')" title="Mit anderen Lieferungen teilen">&#x1F517;</button>' : '';
+            var srcNote=a._shared?('<br><span class="dl-s" style="color:var(--blue)">von: '+
+              esc(a._srcOrder||'')+' · '+esc(a._srcName)+'</span>'):'';
+            var actions=a._shared
+              ? '<span></span>'
+              : '<span>'+shareBtn+'<button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
+                '<button class="ib del" onclick="rmDoc(\''+o.id+'\',\''+dl.id+'\',\''+a.id+'\')">&#x2715;</button></span>';
             return '<div class="drow" style="margin-left:26px;background:var(--sur2)">'+
               '<span class="dst o">&#x1F4C4;</span>'+
-              '<span><span class="dl-n">'+esc(a.name)+'</span><br><span class="dl-s">'+Math.round((a.size||0)/1024)+' KB · '+fdShort(a.date)+'</span></span>'+
-              '<span><button class="ib" onclick="viewDoc(\''+a.id+'\')">&#x2197;</button>'+
-              '<button class="ib del" onclick="rmDoc(\''+o.id+'\',\''+dl.id+'\',\''+a.id+'\')">&#x2715;</button></span></div>';
+              '<span><span class="dl-n">'+esc(a.name)+'</span><br><span class="dl-s">'+Math.round((a.size||0)/1024)+' KB · '+fdShort(a.date)+'</span>'+srcNote+'</span>'+
+              actions+'</div>';
           }).join('');
           return head+files;
         }).join('')+'</div>';
@@ -1499,12 +1551,20 @@ function openDoc(oid,did,dtype){
   document.getElementById('docTitle').textContent=dt.label+' hochladen';
   var hint='';
   if(dtype==='evv')hint='<div class="hintbox">Die <b>elektronische Veranlagungsverfügung</b> bekommst du '+
-    'vom Zoll bzw. deinem Spediteur. Ohne sie kannst du die bezahlte Einfuhrsteuer nicht als Vorsteuer zurückfordern.</div>';
+    'vom Zoll bzw. deinem Spediteur. Ohne sie kannst du die bezahlte Einfuhrsteuer nicht als Vorsteuer zurückfordern.<br>'+
+    'Gilt eine eVV für mehrere Sendungen, lade sie einmal hoch und teile sie danach über das 🔗-Symbol — '+
+    'auch mit Lieferungen aus anderen Bestellungen.</div>';
   if(dtype==='zoll')hint='<div class="hintbox">Auf der <b>Zoll-/Speditionsrechnung</b> bzw. dem beiliegenden '+
     '<b>EUR.1</b> läuft der Präferenznachweis — damit zahlst du den Präferenzzoll statt des vollen Satzes. '+
     'Prüfe, ob die Präferenz gewährt wurde.</div>';
   if(dtype==='labor')hint='<div class="hintbox">Der <b>Laborbericht</b> belegt die Zusammensetzung der Charge — '+
     'wichtig bei Reklamationen und Behördenanfragen.</div>';
+  if(dtype==='laborpruefung')hint='<div class="hintbox">Die <b>Laborprüfung</b> weist die Rohstoffe der Charge nach. '+
+    'Nach dem Hochladen kannst du sie über das 🔗-Symbol mit weiteren Lieferungen teilen, '+
+    'die dieselben Rohstoffe nutzen.</div>';
+  // Footer in Normalzustand (falls vorher vom Verlink-Dialog umgebaut)
+  var mf=document.querySelector('#ovDoc .mf');
+  if(mf)mf.innerHTML='<button class="btn" onclick="closeOv(\'ovDoc\')">Abbrechen</button>';
   var o=fO(oid),dl=did?fD(oid,did):null;
   document.getElementById('docBody').innerHTML=hint+
     '<div class="lbl">Zuordnung</div>'+
@@ -1604,6 +1664,64 @@ function rmDoc(oid,did,attId){
   if(PS.ready())PS.docDel(attId).catch(function(e){console.error(e);});
   sv();render();
   if(!did&&document.getElementById('ovOrd').classList.contains('on'))openOrder(oid);
+}
+/* ── Dokument mit mehreren Lieferungen teilen (auch bestellungsuebergreifend) ── */
+function linkDoc(oid,srcDid,dtype){
+  event&&event.stopPropagation&&event.stopPropagation();
+  var src=fD(oid,srcDid);if(!src)return;
+  var dt=DOC_TYPES.find(function(x){return x.id===dtype;});if(!dt)return;
+  CUR.oid=oid;CUR.did=srcDid;CUR.dtype=dtype;
+  var srcOrder=fO(oid);
+  var html='';
+  (ST.orders||[]).forEach(function(o){
+    var cand=(o.deliveries||[]).filter(function(d){
+      return d.id!==srcDid && d.kind!=='anzahlung' && n2(d.stk_ordered)>0;
+    });
+    if(!cand.length)return;
+    html+='<div class="lbl">'+esc(o.ref||o.name)+'</div>'+cand.map(function(d){
+      var own=(d.attachments||[]).some(function(a){return a.docType===dtype;});
+      var l=getLink(d,dtype);
+      var linked=!!(l&&l.d===srcDid);
+      var note=own?'hat eigene Datei':(linked?'bereits verknuepft':
+        (l?'mit anderer Lieferung verknuepft':(d.deliveryDate?fdShort(d.deliveryDate):'ohne Datum')));
+      return '<label class="row" style="cursor:pointer">'+
+        '<span class="rt">'+esc(d.name)+'<span class="rs">'+note+'</span></span>'+
+        '<input type="checkbox" data-did="'+d.id+'" '+(linked?'checked ':'')+(own?'disabled':'')+
+          ' style="width:20px;height:20px">'+
+        '<span></span></label>';
+    }).join('');
+  });
+  document.getElementById('docTitle').textContent=dt.label+' teilen';
+  document.getElementById('docBody').innerHTML=
+    '<div class="hintbox">Waehle alle Lieferungen, fuer die <b>dieselbe Datei</b> gilt. '+
+      'Das geht auch ueber Bestellungen hinweg, etwa wenn zwei Sendungen zusammen verzollt wurden.</div>'+
+    '<div class="lbl">Quelle</div>'+
+    '<div class="row have"><span class="rt">'+esc(srcOrder?(srcOrder.ref||srcOrder.name):'')+' &middot; '+esc(src.name)+
+      '<span class="rs">enthaelt die Datei</span></span><span></span><span></span></div>'+
+    (html||'<div class="empty" style="padding:12px">Keine weiteren Lieferungen.</div>');
+  var mf=document.querySelector('#ovDoc .mf');
+  if(mf)mf.innerHTML='<button class="btn" onclick="closeOv(\'ovDoc\')">Abbrechen</button>'+
+    '<button class="btn dark" onclick="applyLinks()">Verknuepfen</button>';
+  openOv('ovDoc');
+}
+function applyLinks(){
+  var srcOid=CUR.oid, srcDid=CUR.did, dtype=CUR.dtype;
+  document.querySelectorAll('#docBody input[type=checkbox][data-did]').forEach(function(cb){
+    if(cb.disabled)return;
+    var hit=findDelivery(cb.getAttribute('data-did'));if(!hit)return;
+    var l=getLink(hit.dl,dtype);
+    if(cb.checked)setLink(hit.dl,dtype,srcOid,srcDid);
+    else if(l&&l.d===srcDid)clearLink(hit.dl,dtype);
+  });
+  sv();render();closeOv('ovDoc');
+  var mf=document.querySelector('#ovDoc .mf');
+  if(mf)mf.innerHTML='<button class="btn" onclick="closeOv(\'ovDoc\')">Abbrechen</button>';
+}
+function unlinkDoc(oid,did,dtype){
+  event&&event.stopPropagation&&event.stopPropagation();
+  var d=fD(oid,did);if(!d)return;
+  if(!confirm('Verknuepfung loesen?'))return;
+  clearLink(d,dtype);sv();render();
 }
 
 /* ── Drag & Drop ── */
